@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="icon" type="image/png" href="logo.png"/>
+<title>תזרים — ניהול תזרים מזומנים חכם | Tactigo</title>
+<meta name="description" content="תזרים — תוכנה חכמה לניהול תזרים מזומנים. דעו בדיוק מתי תיכנסו למינוס, עקבו אחרי הכנסות והוצאות, ונהלו עד 5 חשבונות בנק במקום אחד."/>
+<style>
+@font-face{font-family:'FbEinstein';src:url('FbEinstein-Regular.otf') format('opentype')}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--teal:#00AECC;--navy:#0D1B4B;--bg:#07112B;--green:#10B981;--orange:#F97316}
+body{font-family:'FbEinstein','Segoe UI',system-ui,sans-serif;background:var(--bg);color:#fff;direction:rtl;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#00AECC33;border-radius:3px}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.reveal{opacity:0;transform:translateY(40px);transition:all .7s cubic-bezier(.4,0,.2,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ===== NAV ===== */
+nav{position:fixed;top:0;right:0;left:0;z-index:100;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;transition:all .3s}
+nav.scrolled{background:rgba(7,17,43,.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,174,204,.1);padding:12px 40px}
+nav .logo img{height:32px;transition:transform .2s}
+nav .logo img:hover{transform:scale(1.05)}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{color:rgba(255,255,255,.6);font-size:14px;transition:color .2s;position:relative}
+.nav-links a:hover{color:#fff}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;right:0;width:0;height:2px;background:var(--teal);transition:width .25s}
+.nav-links a:hover::after{width:100%}
+.btn-nav{background:var(--teal);color:var(--bg);font-weight:700;padding:10px 24px;border-radius:12px;font-size:14px;border:none;cursor:pointer;transition:all .2s}
+.btn-nav:hover{background:#00C8EB;transform:translateY(-1px)}
+
+/* ===== HERO ===== */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:120px 40px 80px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-200px;left:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(0,174,204,.12) 0%,transparent 70%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-100px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(16,185,129,.08) 0%,transparent 70%);pointer-events:none}
+.hero-content{max-width:1200px;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;position:relative;z-index:1}
+.hero-text{animation:fadeInUp .8s ease-out}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,174,204,.1);border:1px solid rgba(0,174,204,.25);padding:6px 16px;border-radius:100px;font-size:12px;color:var(--teal);font-weight:600;letter-spacing:.03em;margin-bottom:24px}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:pulse 2s infinite}
+.hero h1{font-size:clamp(2.5rem,5vw,4rem);font-weight:700;line-height:1.15;margin-bottom:20px;letter-spacing:-.02em}
+.hero h1 .gradient{background:linear-gradient(135deg,var(--teal),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-size:200% 200%;animation:gradientShift 4s ease infinite}
+.hero-desc{font-size:18px;color:rgba(255,255,255,.55);line-height:1.7;margin-bottom:36px;max-width:480px}
+.hero-actions{display:flex;gap:14px;flex-wrap:wrap}
+.btn-hero{padding:16px 36px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;transition:all .25s;border:none}
+.btn-hero-primary{background:var(--teal);color:var(--bg)}
+.btn-hero-primary:hover{background:#00C8EB;transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,174,204,.3)}
+.btn-hero-secondary{background:transparent;border:1px solid rgba(255,255,255,.15);color:#fff}
+.btn-hero-secondary:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.04)}
+.hero-visual{animation:fadeInUp .8s ease-out .2s both;display:flex;justify-content:center}
+.hero-mockup{width:100%;max-width:480px;border-radius:24px;overflow:hidden;border:1px solid rgba(0,174,204,.2);box-shadow:0 24px 80px rgba(0,0,0,.5);animation:float 6s ease-in-out infinite;position:relative}
+.mockup-header{background:rgba(13,27,75,.8);padding:20px 24px;display:flex;align-items:center;justify-content:space-between}
+.mockup-dots{display:flex;gap:6px}
+.mockup-dots span{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.1)}
+.mockup-dots span:first-child{background:#EF4444}
+.mockup-dots span:nth-child(2){background:#F59E0B}
+.mockup-dots span:last-child{background:#10B981}
+.mockup-body{background:rgba(7,17,43,.95);padding:32px 24px}
+.mockup-balance{text-align:center;margin-bottom:24px}
+.mockup-balance .label{font-size:12px;color:rgba(255,255,255,.35);margin-bottom:6px}
+.mockup-balance .amount{font-size:36px;font-weight:700;color:var(--teal)}
+.mockup-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.05);margin-bottom:16px;overflow:hidden}
+.mockup-bar-fill{height:100%;border-radius:3px;width:65%;background:linear-gradient(90deg,var(--teal),var(--green))}
+.mockup-rows{display:flex;flex-direction:column;gap:10px}
+.mockup-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04)}
+.mockup-row .name{font-size:13px;color:rgba(255,255,255,.7)}
+.mockup-row .val{font-size:14px;font-weight:700}
+.mockup-row .val.income{color:var(--green)}
+.mockup-row .val.expense{color:var(--orange)}
+
+/* ===== FEATURES ===== */
+.features{padding:100px 40px;position:relative}
+.features::before{content:'';position:absolute;top:0;right:0;left:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,174,204,.2),transparent)}
+.section-head{text-align:center;margin-bottom:64px}
+.section-tag{display:inline-block;font-size:12px;color:var(--teal);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+.section-title{font-size:clamp(1.8rem,3.5vw,2.5rem);font-weight:700;margin-bottom:16px}
+.section-desc{font-size:16px;color:rgba(255,255,255,.45);max-width:560px;margin:0 auto;line-height:1.6}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;max-width:1100px;margin:0 auto}
+.feat-card{background:rgba(13,27,75,.3);border:1px solid rgba(0,174,204,.1);border-radius:20px;padding:32px;transition:all .3s;position:relative;overflow:hidden}
+.feat-card:hover{border-color:rgba(0,174,204,.3);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,.3)}
+.feat-card::after{content:'';position:absolute;top:0;right:0;width:120px;height:120px;background:radial-gradient(circle,rgba(0,174,204,.06) 0%,transparent 70%);pointer-events:none}
+.feat-icon{width:48px;height:48px;border-radius:14px;background:rgba(0,174,204,.1);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:18px}
+.feat-title{font-size:18px;font-weight:700;margin-bottom:10px}
+.feat-desc{font-size:14px;color:rgba(255,255,255,.45);line-height:1.6}
+
+/* ===== HOW IT WORKS ===== */
+.how{padding:100px 40px;background:radial-gradient(ellipse at center,rgba(13,27,75,.4) 0%,transparent 70%)}
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:32px;max-width:1000px;margin:0 auto}
+.step{text-align:center;position:relative}
+.step-num{width:56px;height:56px;border-radius:50%;background:rgba(0,174,204,.1);border:2px solid rgba(0,174,204,.3);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--teal);margin:0 auto 18px}
+.step-title{font-size:16px;font-weight:700;margin-bottom:8px}
+.step-desc{font-size:14px;color:rgba(255,255,255,.4);line-height:1.6}
+
+/* ===== PRICING ===== */
+.pricing{padding:100px 40px}
+.pricing::before{content:'';display:block;height:1px;background:linear-gradient(90deg,transparent,rgba(0,174,204,.2),transparent);margin-bottom:100px}
+.price-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:28px;max-width:800px;margin:0 auto}
+.price-card{border-radius:24px;padding:40px 32px;border:1px solid rgba(0,174,204,.12);background:rgba(13,27,75,.3);transition:all .3s;position:relative}
+.price-card:hover{transform:translateY(-4px);border-color:rgba(0,174,204,.3)}
+.price-card.popular{border-color:var(--teal);box-shadow:0 0 60px rgba(0,174,204,.12)}
+.popular-badge{position:absolute;top:-12px;right:24px;background:var(--teal);color:var(--bg);font-size:12px;font-weight:700;padding:4px 16px;border-radius:100px}
+.price-name{font-size:24px;font-weight:700;margin-bottom:4px}
+.price-sub{font-size:13px;color:rgba(255,255,255,.35);margin-bottom:20px}
+.price-amount{font-size:42px;font-weight:700;color:var(--teal);margin-bottom:4px}
+.price-amount small{font-size:16px;font-weight:400;color:rgba(255,255,255,.35)}
+.price-note{font-size:12px;color:rgba(255,255,255,.25);margin-bottom:24px}
+.price-features{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:32px}
+.price-features li{font-size:14px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:10px}
+.price-features li::before{content:'✓';color:var(--teal);font-weight:700;font-size:16px;flex-shrink:0}
+.btn-price{width:100%;padding:16px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;transition:all .25s;border:none}
+.btn-price-primary{background:var(--teal);color:var(--bg)}
+.btn-price-primary:hover{background:#00C8EB}
+.btn-price-outline{background:transparent;border:1px solid rgba(255,255,255,.15);color:#fff}
+.btn-price-outline:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.04)}
+
+/* ===== TESTIMONIALS ===== */
+.social-proof{padding:80px 40px;text-align:center}
+.proof-stats{display:flex;justify-content:center;gap:48px;flex-wrap:wrap;margin-top:40px}
+.proof-stat .num{font-size:36px;font-weight:700;color:var(--teal)}
+.proof-stat .label{font-size:13px;color:rgba(255,255,255,.35);margin-top:4px}
+
+/* ===== CTA ===== */
+.cta{padding:100px 40px;text-align:center}
+.cta-box{max-width:700px;margin:0 auto;border-radius:28px;padding:64px 48px;background:linear-gradient(135deg,rgba(0,174,204,.08),rgba(16,185,129,.05));border:1px solid rgba(0,174,204,.2);position:relative;overflow:hidden}
+.cta-box::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(0,174,204,.04) 0%,transparent 50%);animation:float 8s ease-in-out infinite}
+.cta-title{font-size:clamp(1.8rem,3vw,2.4rem);font-weight:700;margin-bottom:14px;position:relative}
+.cta-desc{font-size:16px;color:rgba(255,255,255,.45);margin-bottom:32px;position:relative}
+.btn-cta{display:inline-block;background:var(--teal);color:var(--bg);font-weight:700;font-size:18px;padding:18px 48px;border-radius:16px;border:none;cursor:pointer;transition:all .25s;position:relative}
+.btn-cta:hover{background:#00C8EB;transform:translateY(-2px);box-shadow:0 16px 48px rgba(0,174,204,.3)}
+
+/* ===== FOOTER ===== */
+footer{padding:40px;text-align:center;border-top:1px solid rgba(255,255,255,.05);color:rgba(255,255,255,.2);font-size:13px}
+footer a{color:var(--teal);margin:0 8px}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  .hero-content{grid-template-columns:1fr;text-align:center}
+  .hero-desc{margin:0 auto 36px}
+  .hero-actions{justify-content:center}
+  .hero-visual{order:-1;margin-bottom:20px}
+  .hero-mockup{max-width:360px}
+  nav{padding:12px 20px}
+  .nav-links a:not(.btn-nav){display:none}
+  .features,.how,.pricing,.social-proof,.cta{padding:60px 20px}
+  .pricing::before{margin-bottom:60px}
+}
+@media(max-width:540px){
+  .hero{padding:100px 20px 60px}
+  .price-grid{grid-template-columns:1fr}
+  .proof-stats{gap:24px}
+  .cta-box{padding:40px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#" class="logo"><img src="white-logo.png" alt="Tactigo"/></a>
+  <div class="nav-links">
+    <a href="#features">יתרונות</a>
+    <a href="#how">איך זה עובד</a>
+    <a href="#pricing">מחירים</a>
+    <a href="login.html" class="btn-nav">התחל עכשיו</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-content">
+    <div class="hero-text">
+      <div class="hero-badge"><span class="dot"></span> ניהול פיננסי חכם לעסקים</div>
+      <h1>דעו בדיוק<br/>מתי <span class="gradient">נכנסים למינוס</span></h1>
+      <p class="hero-desc">תזרים מזומנים — התוכנה שעוזרת לעסקים קטנים ובינוניים לראות את התמונה המלאה. עקבו אחרי כל שקל שנכנס ויוצא, וקבלו התראה לפני שנגמר הכסף.</p>
+      <div class="hero-actions">
+        <a href="login.html" class="btn-hero btn-hero-primary">התחילו בחינם →</a>
+        <a href="#how" class="btn-hero btn-hero-secondary">איך זה עובד?</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-mockup">
+        <div class="mockup-header">
+          <div class="mockup-dots"><span></span><span></span><span></span></div>
+          <span style="font-size:12px;color:rgba(255,255,255,.3)">תזרים | Tactigo</span>
+        </div>
+        <div class="mockup-body">
+          <div class="mockup-balance">
+            <div class="label">יתרה נוכחית</div>
+            <div class="amount">₪ 47,320</div>
+          </div>
+          <div class="mockup-bar"><div class="mockup-bar-fill"></div></div>
+          <div class="mockup-rows">
+            <div class="mockup-row"><span class="name">תשלום ספקים</span><span class="val expense">-₪ 12,400</span></div>
+            <div class="mockup-row"><span class="name">תקבול מלקוח</span><span class="val income">+₪ 28,000</span></div>
+            <div class="mockup-row"><span class="name">שכירות משרד</span><span class="val expense">-₪ 6,500</span></div>
+            <div class="mockup-row"><span class="name">הכנסה מפרויקט</span><span class="val income">+₪ 15,000</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-head reveal">
+    <div class="section-tag">למה תזרים?</div>
+    <h2 class="section-title">כל מה שצריך כדי לנהל את הכסף שלך</h2>
+    <p class="section-desc">תזרים נבנה במיוחד לעסקים ישראליים שרוצים שליטה מלאה על תזרים המזומנים — בלי אקסלים, בלי סיבוכים.</p>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card reveal">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">תמונה ברורה של התזרים</div>
+      <div class="feat-desc">ראו בדיוק כמה כסף יש לכם היום, מה צפוי להיכנס ולצאת, ומתי אתם עלולים להיכנס למינוס. ברור, פשוט, ויזואלי.</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-icon">🔄</div>
+      <div class="feat-title">תנועות חוזרות אוטומטיות</div>
+      <div class="feat-desc">הגדירו תשלומים חודשיים — שכירות, משכורות, מנויים — ותזרים ייצור אותם אוטומטית לחודשים הבאים. חסכו שעות של עבודה ידנית.</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-icon">⏰</div>
+      <div class="feat-title">התראת כניסה למינוס</div>
+      <div class="feat-desc">תזרים מחשב בדיוק את התאריך שבו תיכנסו למינוס ומציג אותו בצורה בולטת. תמיד תהיו צעד אחד לפני הבנק.</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-icon">🏦</div>
+      <div class="feat-title">ריבוי חשבונות בנק</div>
+      <div class="feat-desc">במסלול PRO — נהלו עד 5 חשבונות בנק, ראו יתרה מאוחדת, ועקבו אחרי תזרים כל חשבון בנפרד. הכל במקום אחד.</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-icon">👥</div>
+      <div class="feat-title">שיתוף עם הנהלת חשבונות</div>
+      <div class="feat-desc">תנו להנהלת החשבונות שלכם גישה ישירה לתזרים — בחינם. הם רואים מה שצריך, אתם שולטים במי רואה מה.</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-icon">🌙</div>
+      <div class="feat-title">מצב בהיר וכהה</div>
+      <div class="feat-desc">עובדים בלילה? עיניים רגישות? עברו בין מצב כהה לבהיר בלחיצה. הממשק מותאם לכל תנאי תאורה.</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-head reveal">
+    <div class="section-tag">פשוט ומהיר</div>
+    <h2 class="section-title">מתחילים בשלושה צעדים</h2>
+  </div>
+  <div class="steps">
+    <div class="step reveal">
+      <div class="step-num">1</div>
+      <div class="step-title">הרשמה מהירה</div>
+      <div class="step-desc">נרשמים עם Google או אימייל, בוחרים מסלול, ומתחילים. בלי התקנות, בלי חוזים, בלי כרטיס אשראי לניסיון.</div>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">2</div>
+      <div class="step-title">הגדירו את הבנק</div>
+      <div class="step-desc">הכניסו את יתרת הבנק הנוכחית שלכם. תזרים יחשב הכל משם — כמה יש לכם, ומתי ייגמר.</div>
+    </div>
+    <div class="step reveal">
+      <div class="step-num">3</div>
+      <div class="step-title">הוסיפו תנועות</div>
+      <div class="step-desc">הכניסו הכנסות והוצאות צפויות — חד-פעמיות או חוזרות. תזרים מחשב מיד את התמונה העתידית שלכם.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="section-head reveal">
+    <div class="section-tag">מחירים</div>
+    <h2 class="section-title">מסלולים שמתאימים לכל עסק</h2>
+    <p class="section-desc">ללא התחייבות. אפשר לשדרג, לשנות, או לבטל בכל רגע.</p>
+  </div>
+  <div class="price-grid">
+    <div class="price-card reveal">
+      <div class="price-name">Starter</div>
+      <div class="price-sub">לעסקים שמתחילים לעקוב</div>
+      <div class="price-amount">12 ₪<small> / חודש</small></div>
+      <div class="price-note">או 120 ₪ לשנה (חסכו 24 ₪) · + מע"מ</div>
+      <ul class="price-features">
+        <li>חשבון בנק אחד</li>
+        <li>תנועות ללא הגבלה</li>
+        <li>התראת כניסה למינוס</li>
+        <li>תנועות חוזרות</li>
+        <li>שיתוף עם הנהלת חשבונות</li>
+        <li>כניסה עם Google</li>
+      </ul>
+      <a href="login.html" class="btn-price btn-price-outline">התחילו עכשיו</a>
+    </div>
+    <div class="price-card popular reveal">
+      <div class="popular-badge">הכי פופולרי</div>
+      <div class="price-name">PRO</div>
+      <div class="price-sub">לעסקים שרוצים שליטה מלאה</div>
+      <div class="price-amount">36 ₪<small> / חודש</small></div>
+      <div class="price-note">או 360 ₪ לשנה (חסכו 72 ₪) · + מע"מ</div>
+      <ul class="price-features">
+        <li>עד 5 חשבונות בנק</li>
+        <li>יתרה מאוחדת</li>
+        <li>תנועות ללא הגבלה</li>
+        <li>מינוס צפוי לכל בנק בנפרד</li>
+        <li>שיתוף עד 6 משתמשים</li>
+        <li>תמיכה מועדפת</li>
+      </ul>
+      <a href="login.html" class="btn-price btn-price-primary">התחילו עכשיו</a>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<section class="social-proof reveal">
+  <div class="section-tag">נתונים</div>
+  <h2 class="section-title">מספרים שמדברים</h2>
+  <div class="proof-stats">
+    <div class="proof-stat"><div class="num">100%</div><div class="label">זמינות בענן</div></div>
+    <div class="proof-stat"><div class="num">30 שניות</div><div class="label">זמן הרשמה</div></div>
+    <div class="proof-stat"><div class="num">5</div><div class="label">חשבונות בנק ב-PRO</div></div>
+    <div class="proof-stat"><div class="num">∞</div><div class="label">תנועות ללא הגבלה</div></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="cta-box reveal">
+    <h2 class="cta-title">מוכנים לדעת בדיוק איפה הכסף שלכם?</h2>
+    <p class="cta-desc">הצטרפו לתזרים עכשיו ותתחילו לישון בשקט.</p>
+    <a href="login.html" class="btn-cta">פתחו חשבון בחינם →</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2026 תזרים — מבית <a href="https://tactigo.co.il" target="_blank">Tactigo</a> · <a href="mailto:office@tactigo.co.il">צרו קשר</a></p>
+</footer>
+
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
+},{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+// Nav scroll effect
+window.addEventListener('scroll',()=>{
+  document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>50);
+});
+
+// Smooth scroll
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const t=document.querySelector(a.getAttribute('href'));
+    if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
+</script>
+</body>
+</html>

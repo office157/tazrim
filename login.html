@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="icon" type="image/png" href="logo.png"/>
+<meta name="description" content="כניסה לתזרים — ניהול תזרים מזומנים | Tactigo"/>
+<title>כניסה | תזרים — Tactigo</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@font-face{font-family:'FbEinstein';src:url('FbEinstein-Regular.otf') format('opentype')}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'FbEinstein','Segoe UI',sans-serif;direction:rtl}
+:root{--teal:#00AECC;--bg:#07112B}
+body{background:var(--bg);color:#fff;min-height:100vh}
+@keyframes fadeIn{from{opacity:0;transform:scale(.96) translateY(-8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+.page{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+@media(max-width:800px){.page{grid-template-columns:1fr}.side-visual{display:none}}
+
+.side-form{display:flex;align-items:center;justify-content:center;padding:40px;z-index:2}
+.form-card{width:100%;max-width:420px;animation:fadeIn .5s ease-out}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:40px;text-decoration:none}
+.logo img{height:36px}
+.logo span{font-size:14px;color:rgba(255,255,255,.3)}
+.form-title{font-size:28px;font-weight:700;margin-bottom:6px}
+.form-sub{color:rgba(255,255,255,.4);font-size:14px;margin-bottom:32px}
+.form-label{color:rgba(255,255,255,.45);font-size:13px;display:block;margin-bottom:6px}
+.form-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 18px;color:#fff;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:16px}
+.form-input:focus{border-color:rgba(0,174,204,.5)}
+.form-input::placeholder{color:rgba(255,255,255,.2)}
+.btn-primary{width:100%;background:var(--teal);color:#07112B;font-weight:700;font-size:16px;padding:16px;border:none;border-radius:14px;cursor:pointer;transition:all .25s}
+.btn-primary:hover{background:#00C8EB;transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,174,204,.25)}
+.btn-secondary{width:100%;background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-size:14px;padding:14px;border-radius:14px;cursor:pointer;transition:all .2s;margin-top:10px}
+.btn-secondary:hover{border-color:rgba(255,255,255,.2);color:#fff}
+.divider{display:flex;align-items:center;gap:14px;margin:20px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08)}
+.divider span{color:rgba(255,255,255,.2);font-size:12px}
+.btn-google{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;font-weight:600;font-size:15px;padding:15px;border-radius:14px;cursor:pointer;transition:all .25s}
+.btn-google:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);transform:translateY(-1px)}
+.btn-google svg{flex-shrink:0}
+.error-msg{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;border-radius:12px;padding:12px 16px;font-size:13px;text-align:center;margin-bottom:16px}
+.success-msg{background:rgba(0,174,204,.1);border:1px solid rgba(0,174,204,.3);border-radius:14px;padding:28px;text-align:center}
+.success-msg .icon{font-size:40px;margin-bottom:12px}
+.success-msg .title{font-weight:700;font-size:16px;margin-bottom:4px}
+.success-msg .desc{color:rgba(255,255,255,.45);font-size:13px}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:rgba(255,255,255,.3);font-size:13px;margin-top:24px;text-decoration:none;transition:color .2s}
+.back-link:hover{color:#fff}
+.tabs{display:flex;gap:0;margin-bottom:28px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.tab{flex:1;padding:12px;text-align:center;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;background:transparent;border:none;color:rgba(255,255,255,.3)}
+.tab.active{background:rgba(0,174,204,.15);color:var(--teal)}
+
+.side-visual{display:flex;align-items:center;justify-content:center;padding:40px;background:radial-gradient(ellipse at center,rgba(0,174,204,.06) 0%,transparent 70%);position:relative}
+.side-visual::before{content:'';position:absolute;top:-100px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(0,174,204,.08) 0%,transparent 70%)}
+.visual-content{text-align:center;animation:fadeIn .6s ease-out .2s both;max-width:380px}
+.visual-icon{font-size:64px;margin-bottom:24px;animation:float 4s ease-in-out infinite}
+.visual-title{font-size:24px;font-weight:700;margin-bottom:12px}
+.visual-desc{color:rgba(255,255,255,.4);font-size:14px;line-height:1.7;margin-bottom:32px}
+.visual-features{display:flex;flex-direction:column;gap:14px;text-align:right}
+.visual-feat{display:flex;align-items:center;gap:12px;font-size:14px;color:rgba(255,255,255,.5)}
+.visual-feat .check{width:28px;height:28px;border-radius:8px;background:rgba(0,174,204,.1);display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:14px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="side-form">
+    <div class="form-card" id="form-card">
+      <a href="index.html" class="logo"><img src="white-logo.png" alt="Tactigo"/><span>תזרים</span></a>
+      <div id="form-content"></div>
+      <a href="index.html" class="back-link">← חזרה לדף הבית</a>
+    </div>
+  </div>
+  <div class="side-visual">
+    <div class="visual-content">
+      <div class="visual-icon">📊</div>
+      <div class="visual-title">שליטה מלאה על הכסף שלך</div>
+      <div class="visual-desc">הצטרפו לעסקים שכבר יודעים בדיוק מתי הכסף נכנס, יוצא, ומתי צריך להיזהר.</div>
+      <div class="visual-features">
+        <div class="visual-feat"><span class="check">✓</span>התראה לפני כניסה למינוס</div>
+        <div class="visual-feat"><span class="check">✓</span>עד 5 חשבונות בנק</div>
+        <div class="visual-feat"><span class="check">✓</span>שיתוף עם הנהלת חשבונות</div>
+        <div class="visual-feat"><span class="check">✓</span>ללא התקנה — עובד בדפדפן</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const { createClient } = supabase;
+const SB_URL = 'https://chzoulucwbhvulgopuah.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NjYzNiwiZXhwIjoyMDkzNzMyNjM2fQ.xmm4AzHmLc9M-wucQ_9ZeikOTWvYGCT1cgsTgMHKzjM';
+const db = createClient(SB_URL, SB_KEY);
+const ADMIN_EMAIL = 'office@tactigo.co.il';
+
+let mode = 'login';
+
+function renderForm(err='') {
+  const el = document.getElementById('form-content');
+  if(mode==='magic-sent'){
+    el.innerHTML = `<div class="success-msg"><div class="icon">📧</div><div class="title">נשלח! בדקו את האימייל</div><div class="desc">שלחנו לכם לינק כניסה. לחצו עליו כדי להיכנס.</div></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="form-title">${mode==='login'?'כניסה לחשבון':'יצירת חשבון חדש'}</div>
+    <div class="form-sub">${mode==='login'?'היכנסו לחשבון התזרים שלכם':'הצטרפו לתזרים — פשוט ומהיר'}</div>
+    ${err?`<div class="error-msg">${err}</div>`:''}
+    <div class="tabs">
+      <button class="tab ${mode==='login'?'active':''}" data-mode="login">כניסה</button>
+      <button class="tab ${mode==='register'?'active':''}" data-mode="register">הרשמה</button>
+    </div>
+    <button class="btn-google" id="btn-google">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.0 24.0 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      ${mode==='login'?'כניסה עם Google':'הרשמה עם Google'}
+    </button>
+    <div class="divider"><span>או עם אימייל</span></div>
+    <label class="form-label">אימייל</label>
+    <input class="form-input" id="f-email" type="email" placeholder="your@email.com"/>
+    <label class="form-label">סיסמה</label>
+    <input class="form-input" id="f-pass" type="password" placeholder="••••••••"/>
+    <button class="btn-primary" id="btn-submit">${mode==='login'?'כניסה':'יצירת חשבון'}</button>
+    <button class="btn-secondary" id="btn-magic">שלחו לי לינק כניסה (ללא סיסמה)</button>`;
+  bindForm();
+}
+
+function bindForm() {
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    mode=t.dataset.mode; renderForm();
+  }));
+  document.getElementById('btn-google')?.addEventListener('click', async()=>{
+    await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+'/login.html'}});
+  });
+  document.getElementById('btn-submit')?.addEventListener('click', async()=>{
+    const email=document.getElementById('f-email').value.trim();
+    const pass=document.getElementById('f-pass').value;
+    if(!email||!pass){renderForm('אנא מלאו אימייל וסיסמה');return;}
+    if(mode==='register'){
+      const {error}=await db.auth.signUp({email,password:pass,options:{emailRedirectTo:location.origin+'/login.html'}});
+      if(error){renderForm(error.message);return;}
+      mode='magic-sent'; renderForm();
+    } else {
+      const {data,error}=await db.auth.signInWithPassword({email,password:pass});
+      if(error){renderForm('אימייל או סיסמה שגויים');return;}
+      if(email===ADMIN_EMAIL) window.location.href='admin.html';
+      else window.location.href='app.html';
+    }
+  });
+  document.getElementById('btn-magic')?.addEventListener('click', async()=>{
+    const email=document.getElementById('f-email')?.value.trim();
+    if(!email){renderForm('הכניסו אימייל תחילה');return;}
+    await db.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+'/login.html'}});
+    mode='magic-sent'; renderForm();
+  });
+  document.getElementById('f-pass')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter') document.getElementById('btn-submit').click();
+  });
+}
+
+function goToApp(email){
+  if(email===ADMIN_EMAIL) window.location.href='admin.html';
+  else window.location.href='app.html';
+}
+
+async function init(){
+  // Handle OAuth/magic-link code exchange (PKCE flow)
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('code')){
+    try {
+      const {data,error} = await db.auth.exchangeCodeForSession(params.get('code'));
+      if(data?.session){
+        goToApp(data.session.user.email);
+        return;
+      }
+      if(error) console.error('[LOGIN] code exchange error:', error);
+    } catch(e){ console.error('[LOGIN] code exchange exception:', e); }
+  }
+
+  const {data:{session}}=await db.auth.getSession();
+  if(session){
+    goToApp(session.user.email);
+    return;
+  }
+  renderForm();
+
+  // Listen for async session establishment (OAuth hash fragments)
+  db.auth.onAuthStateChange((event, sess)=>{
+    if(event==='SIGNED_IN' && sess){
+      goToApp(sess.user.email);
+    }
+  });
+}
+init();
+</script>
+</body>
+</html>

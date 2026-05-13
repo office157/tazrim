@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="icon" type="image/png" href="logo.png"/>
+<meta name="description" content="פאנל ניהול — תזרים | Tactigo"/>
+<title>תזרים | ניהול</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@font-face{font-family:'FbEinstein';src:url('FbEinstein-Regular.otf') format('opentype')}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'FbEinstein','Segoe UI',sans-serif;direction:rtl}
+:root{--teal:#00AECC;--navy:#0D1B4B;--green:#10B981;--orange:#F97316;--red:#EF4444;--bg:#07112B;--bg2:#0D1B4B;--text:#fff;--text-dim:rgba(255,255,255,.35);--text-mid:rgba(255,255,255,.55);--border:rgba(255,255,255,.1);--glass-bg:rgba(13,27,75,0.6);--input-bg:rgba(255,255,255,.06)}
+[data-theme="light"]{--bg:#f0f2f5;--bg2:#e4e7ec;--text:#1a1a2e;--text-dim:rgba(0,0,0,.4);--text-mid:rgba(0,0,0,.55);--border:rgba(0,0,0,.1);--glass-bg:rgba(255,255,255,0.75);--input-bg:rgba(0,0,0,.04)}
+body{background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#00AECC33;border-radius:3px}
+.glass{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(0,174,204,0.18);box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.07)}
+[data-theme="light"] .glass{background:var(--glass-bg);border-color:rgba(0,174,204,0.25);box-shadow:0 4px 16px rgba(0,0,0,0.06)}
+@keyframes fadeIn{from{opacity:0;transform:scale(.96) translateY(-8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.anim-fade{animation:fadeIn .22s ease-out forwards}
+.anim-up{animation:slideUp .28s ease-out forwards}
+#loader{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.spinner{width:44px;height:44px;border:2px solid #00AECC;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+/* Header */
+.header{padding:18px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.header-right{display:flex;align-items:center;gap:14px}
+.header-logo img{height:32px}
+.header-title{font-size:18px;font-weight:700}
+.btn-logout{background:transparent;border:1px solid rgba(255,255,255,.12);color:var(--text-dim);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;transition:all .2s}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+.theme-toggle{background:transparent;border:1px solid var(--border);color:var(--text-dim);width:36px;height:36px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s}
+/* Login */
+#login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at top,#0D1B4B 0%,#07112B 60%)}
+.login-card{width:100%;max-width:400px;padding:40px 36px;border-radius:20px}
+.login-logo{display:flex;justify-content:center;margin-bottom:20px}
+.login-logo img{height:44px}
+.login-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:16px}
+.form-input{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-size:15px;outline:none;transition:border-color .2s;margin-bottom:14px}
+.form-input:focus{border-color:rgba(0,174,204,.5)}
+.btn-primary{width:100%;background:var(--teal);color:#07112B;font-weight:700;font-size:15px;padding:14px;border:none;border-radius:12px;cursor:pointer;transition:background .2s}
+.btn-primary:hover{background:#00C8EB}
+.error-msg{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;border-radius:10px;padding:10px;font-size:13px;text-align:center;margin-bottom:12px}
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;padding:24px 28px}
+.stat-card{border-radius:16px;padding:20px;text-align:center}
+.stat-num{font-size:32px;font-weight:700}
+.stat-label{font-size:13px;color:var(--text-dim);margin-top:4px}
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 28px}
+.tab-btn{padding:14px 20px;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s}
+.tab-btn.active{color:var(--teal);border-bottom-color:var(--teal)}
+/* Table */
+.admin-table{width:100%;border-collapse:collapse;margin-top:4px}
+.admin-table th{padding:12px 16px;text-align:right;font-size:12px;color:var(--text-dim);font-weight:400;border-bottom:1px solid var(--border);white-space:nowrap}
+.admin-table td{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.03);font-size:14px}
+.admin-table tr:hover td{background:rgba(255,255,255,.02)}
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+.badge-active{background:rgba(16,185,129,.12);color:#34D399}
+.badge-inactive{background:rgba(239,68,68,.12);color:#FCA5A5}
+.badge-starter{background:rgba(0,174,204,.1);color:#67E8F9}
+.badge-pro{background:rgba(249,115,22,.12);color:#FB923C}
+.badge-trial{background:rgba(220,38,38,.12);color:#FCA5A5}
+.badge-free{background:rgba(139,92,246,.12);color:#A78BFA}
+.badge-accountant{background:rgba(6,182,212,.12);color:#67E8F9}
+/* Actions */
+.action-bar{padding:16px 28px;display:flex;gap:10px;flex-wrap:wrap}
+.btn-action{background:rgba(0,174,204,.1);border:1px solid rgba(0,174,204,.3);color:var(--teal);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn-action:hover{background:rgba(0,174,204,.2)}
+.btn-danger{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+/* Content area */
+.content{padding:0 28px 28px}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(4,11,30,.82);backdrop-filter:blur(6px);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.modal-card{width:100%;max-width:480px;border-radius:20px;overflow:clip;margin:auto;padding:24px}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:16px}
+.form-label{color:var(--text-dim);font-size:13px;display:block;margin-bottom:6px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px}
+.btn-sm{padding:10px 20px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
+.btn-sm-primary{background:var(--teal);color:#07112B}.btn-sm-primary:hover{background:#00C8EB}
+.btn-sm-cancel{background:transparent;border:1px solid var(--border);color:var(--text-dim)}.btn-sm-cancel:hover{color:var(--text)}
+</style>
+</head>
+<body>
+<div id="app"><div id="loader"><div class="spinner"></div></div></div>
+
+<script type="module">
+const { createClient } = supabase;
+const SB_URL = 'https://chzoulucwbhvulgopuah.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NjYzNiwiZXhwIjoyMDkzNzMyNjM2fQ.xmm4AzHmLc9M-wucQ_9ZeikOTWvYGCT1cgsTgMHKzjM';
+const db = createClient(SB_URL, SB_KEY);
+// Admin client — never tracks user session, always uses service role key → bypasses RLS
+const dbAdmin = createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+const ADMIN_EMAIL = 'office@tactigo.co.il';
+const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
+
+let session=null, tenants=[], payments=[], activeTab='clients', modalData=null;
+
+const fmt = n => new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(n);
+const fmtDate = s => { if(!s) return '—'; const d=new Date(s); return d.toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'}); };
+
+function isFreeAccount(t){ return t && t.plan_expires_at && new Date(t.plan_expires_at).getFullYear()>=2090; }
+function isTrialAccount(t){ return t && !isFreeAccount(t) && t.plan==='starter' && t.plan_expires_at && (new Date(t.plan_expires_at)-new Date(t.plan_started_at||t.created_at))/(864e5)<=8; }
+
+function render() {
+  const app = document.getElementById('app');
+  if(!session || session.user.email !== ADMIN_EMAIL){
+    app.innerHTML = renderLogin(); bindLogin(); return;
+  }
+  app.innerHTML = renderDashboard();
+  bindDashboard();
+}
+
+function renderLogin(err='') {
+  return `<div id="login-page"><div class="glass login-card anim-fade">
+    <div class="login-logo"><img src="white-logo.png" alt="Tactigo"/></div>
+    <div class="login-title">פאנל ניהול — תזרים</div>
+    ${err?`<div class="error-msg">${err}</div>`:''}
+    <input class="form-input" id="li-email" type="email" placeholder="אימייל מנהל"/>
+    <input class="form-input" id="li-pass" type="password" placeholder="סיסמה"/>
+    <button class="btn-primary" id="btn-login">כניסה</button>
+  </div></div>`;
+}
+
+function bindLogin() {
+  document.getElementById('btn-login')?.addEventListener('click', async()=>{
+    const email=document.getElementById('li-email').value.trim();
+    const pass=document.getElementById('li-pass').value;
+    if(email!==ADMIN_EMAIL){document.getElementById('app').innerHTML=renderLogin('⛔ גישה למנהלים בלבד');bindLogin();return;}
+    const {error}=await db.auth.signInWithPassword({email,password:pass});
+    if(error){document.getElementById('app').innerHTML=renderLogin('אימייל או סיסמה שגויים');bindLogin();}
+  });
+  document.getElementById('li-pass')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('btn-login').click();});
+}
+
+function renderDashboard() {
+  const active = tenants.filter(t=>t.is_active);
+  const inactive = tenants.filter(t=>!t.is_active);
+  const proCount = tenants.filter(t=>t.plan==='pro').length;
+  const trialCount = tenants.filter(t=>isTrialAccount(t)||isFreeAccount(t)).length;
+  const totalRevenue = payments.reduce((s,p)=>s+(p.status==='completed'?parseFloat(p.amount):0),0);
+
+  // Tenants expiring within 30 days
+  const soon = tenants.filter(t=>{
+    if(!t.plan_expires_at) return false;
+    const d = (new Date(t.plan_expires_at)-new Date())/(864e5);
+    return d>0 && d<=30;
+  });
+
+  return `
+  <div class="header anim-up">
+    <div class="header-right">
+      <div class="header-logo"><img src="white-logo.png" alt="Tactigo"/></div>
+      <div class="header-title">ניהול תזרים</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="theme-toggle" id="theme-toggle">🌙</button>
+      <button class="btn-logout" id="btn-logout">יציאה</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card glass anim-up"><div class="stat-num" style="color:var(--green)">${active.length}</div><div class="stat-label">לקוחות פעילים</div></div>
+    <div class="stat-card glass anim-up"><div class="stat-num" style="color:var(--red)">${inactive.length}</div><div class="stat-label">לא פעילים</div></div>
+    <div class="stat-card glass anim-up"><div class="stat-num" style="color:var(--orange)">${proCount}</div><div class="stat-label">מסלול PRO</div></div>
+    <div class="stat-card glass anim-up"><div class="stat-num" style="color:var(--teal)">${fmt(totalRevenue)}</div><div class="stat-label">הכנסות מצטברות</div></div>
+    ${soon.length?`<div class="stat-card glass anim-up"><div class="stat-num" style="color:var(--orange)">${soon.length}</div><div class="stat-label">פג תוקף ב-30 יום</div></div>`:''}
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients">לקוחות</button>
+    <button class="tab-btn ${activeTab==='accountants'?'active':''}" data-tab="accountants">חשבונאים</button>
+    <button class="tab-btn ${activeTab==='payments'?'active':''}" data-tab="payments">תשלומים</button>
+    <button class="tab-btn ${activeTab==='emails'?'active':''}" data-tab="emails">מיילים</button>
+  </div>
+
+  <div class="action-bar">
+    ${activeTab==='clients'?`
+      <button class="btn-action" id="btn-add-client">+ הוספת לקוח</button>
+      <button class="btn-action" id="btn-send-expiry">📧 שלח התראות תוקף</button>
+    `:''}
+    ${activeTab==='accountants'?`
+      <button class="btn-action" id="btn-add-accountant">+ הוספת חשבונאי</button>
+    `:''}
+  </div>
+
+  <div class="content">
+    ${activeTab==='clients' ? renderClientsTable() : ''}
+    ${activeTab==='accountants' ? renderAccountantsTab() : ''}
+    ${activeTab==='payments' ? renderPaymentsTable() : ''}
+    ${activeTab==='emails' ? renderEmailsTab() : ''}
+  </div>
+
+  ${modalData ? renderModal() : ''}`;
+}
+
+function renderClientsTable() {
+  if(!tenants.length) return '<div style="text-align:center;padding:40px;color:var(--text-dim)">אין לקוחות</div>';
+  return `<table class="admin-table">
+    <tr><th>לקוח</th><th>מסלול</th><th>מחזור</th><th>סטטוס</th><th>תוקף</th><th>נוצר</th><th>פעולות</th></tr>
+    ${tenants.map(t=>`<tr>
+      <td><strong>${t.company_name||'—'}</strong><br><span style="font-size:12px;color:var(--text-dim)">${t.owner_email}</span></td>
+      <td><span class="badge badge-${isFreeAccount(t)?'free':isTrialAccount(t)?'trial':t.plan}">${isFreeAccount(t)?'חינמי':isTrialAccount(t)?'TRIAL':t.plan.toUpperCase()}</span></td>
+      <td>${isTrialAccount(t)?'ניסיון':isFreeAccount(t)?'חינמי':t.billing_cycle==='yearly'?'שנתי':'חודשי'}</td>
+      <td><span class="badge ${t.is_active?'badge-active':'badge-inactive'}">${t.is_active?'פעיל':'לא פעיל'}</span></td>
+      <td>${fmtDate(t.plan_expires_at)}</td>
+      <td>${fmtDate(t.created_at)}</td>
+      <td>
+        <button class="btn-action btn-edit-client" data-id="${t.id}" style="font-size:12px;padding:5px 10px">עריכה</button>
+        <button class="btn-action ${t.is_active?'btn-danger':''} btn-toggle-client" data-id="${t.id}" style="font-size:12px;padding:5px 10px">${t.is_active?'השבת':'הפעל'}</button>
+      </td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+function renderPaymentsTable() {
+  if(!payments.length) return '<div style="text-align:center;padding:40px;color:var(--text-dim)">אין תשלומים</div>';
+  return `<table class="admin-table">
+    <tr><th>לקוח</th><th>סכום</th><th>מסלול</th><th>סטטוס</th><th>תאריך</th><th>תקופה</th></tr>
+    ${payments.map(p=>{
+      const t=tenants.find(x=>x.id===p.tenant_id);
+      return `<tr>
+        <td>${t?.company_name||t?.owner_email||'—'}</td>
+        <td style="font-weight:700">${fmt(p.amount)}</td>
+        <td><span class="badge badge-${p.plan}">${p.plan.toUpperCase()}</span></td>
+        <td><span class="badge ${p.status==='completed'?'badge-active':'badge-inactive'}">${p.status}</span></td>
+        <td>${fmtDate(p.paid_at)}</td>
+        <td>${fmtDate(p.period_start)} — ${fmtDate(p.period_end)}</td>
+      </tr>`;
+    }).join('')}
+  </table>`;
+}
+
+function renderEmailsTab() {
+  return `<div id="emails-list" style="text-align:center;padding:40px;color:var(--text-dim)">טוען...</div>`;
+}
+
+function renderAccountantsTab() {
+  return `<div id="accountants-list" style="text-align:center;padding:40px;color:var(--text-dim)">טוען...</div>`;
+}
+
+function renderModal() {
+  if(modalData?.type==='add-client'){
+    return `<div class="modal-overlay" id="modal-overlay">
+      <div class="modal-card glass anim-fade">
+        <div class="modal-title">הוספת לקוח חדש</div>
+        <label class="form-label">אימייל בעלים</label>
+        <input class="form-input" id="mc-email" type="email"/>
+        <label class="form-label">שם חברה</label>
+        <input class="form-input" id="mc-name"/>
+        <div class="form-row">
+          <div><label class="form-label">מסלול</label>
+            <select class="form-input" id="mc-plan">
+              <option value="starter">Starter</option>
+              <option value="pro">PRO</option>
+              <option value="trial">ניסיון (7 ימים)</option>
+              <option value="free">חינמי (ללא הגבלה)</option>
+            </select>
+          </div>
+          <div><label class="form-label">מחזור</label>
+            <select class="form-input" id="mc-cycle"><option value="monthly">חודשי</option><option value="yearly">שנתי</option></select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-sm btn-sm-primary" id="mc-save">שמור</button>
+          <button class="btn-sm btn-sm-cancel" id="mc-cancel">ביטול</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(modalData?.type==='add-accountant'){
+    return `<div class="modal-overlay" id="modal-overlay">
+      <div class="modal-card glass anim-fade">
+        <div class="modal-title">הוספת חשבונאי</div>
+        <label class="form-label">אימייל חשבונאי</label>
+        <input class="form-input" id="ma-email" type="email"/>
+        <label class="form-label">לקוחות מורשים</label>
+        <div id="ma-tenants-list" style="max-height:220px;overflow-y:auto;margin-bottom:12px">
+          ${tenants.filter(t=>t.is_active).map(t=>`
+            <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;font-size:14px">
+              <input type="checkbox" value="${t.id}" class="ma-tenant-chk" style="accent-color:var(--teal)"/>
+              ${t.company_name||t.owner_email}
+            </label>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-sm btn-sm-primary" id="ma-save">שמור</button>
+          <button class="btn-sm btn-sm-cancel" id="ma-cancel">ביטול</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(modalData?.type==='edit-client'){
+    const t=modalData.tenant;
+    return `<div class="modal-overlay" id="modal-overlay">
+      <div class="modal-card glass anim-fade">
+        <div class="modal-title">עריכת לקוח</div>
+        <label class="form-label">אימייל</label>
+        <input class="form-input" id="ec-email" value="${t.owner_email}" disabled style="opacity:.5"/>
+        <label class="form-label">שם חברה</label>
+        <input class="form-input" id="ec-name" value="${t.company_name||''}"/>
+        <div class="form-row">
+          <div><label class="form-label">מסלול</label>
+            <select class="form-input" id="ec-plan">
+              <option value="starter" ${!isTrialAccount(t)&&!isFreeAccount(t)&&t.plan==='starter'?'selected':''}>Starter</option>
+              <option value="pro" ${t.plan==='pro'?'selected':''}>PRO</option>
+              <option value="trial" ${isTrialAccount(t)?'selected':''}>ניסיון</option>
+              <option value="free" ${isFreeAccount(t)?'selected':''}>חינמי</option>
+            </select>
+          </div>
+          <div><label class="form-label">מחזור</label>
+            <select class="form-input" id="ec-cycle"><option value="monthly" ${t.billing_cycle==='monthly'?'selected':''}>חודשי</option><option value="yearly" ${t.billing_cycle==='yearly'?'selected':''}>שנתי</option></select>
+          </div>
+        </div>
+        <label class="form-label">תוקף מנוי</label>
+        <input class="form-input" id="ec-expires" type="date" value="${t.plan_expires_at?t.plan_expires_at.split('T')[0]:''}"/>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button class="btn-sm btn-sm-primary" id="ec-save">שמור</button>
+          <button class="btn-sm btn-sm-cancel" id="ec-cancel">ביטול</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  return '';
+}
+
+function bindDashboard() {
+  document.getElementById('btn-logout')?.addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
+
+  // Theme toggle
+  document.getElementById('theme-toggle')?.addEventListener('click',()=>{
+    const html=document.documentElement;
+    const next=html.getAttribute('data-theme')==='light'?'dark':'light';
+    html.setAttribute('data-theme',next);
+    localStorage.setItem('tazrim_theme',next);
+    document.getElementById('theme-toggle').textContent=next==='light'?'☀️':'🌙';
+  });
+  const saved=localStorage.getItem('tazrim_theme');
+  if(saved){document.documentElement.setAttribute('data-theme',saved);const b=document.getElementById('theme-toggle');if(b)b.textContent=saved==='light'?'☀️':'🌙';}
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+    activeTab=b.dataset.tab; render();
+    if(activeTab==='emails') loadEmails();
+    if(activeTab==='accountants') loadAccountants();
+  }));
+
+  // Add client
+  document.getElementById('btn-add-client')?.addEventListener('click',()=>{modalData={type:'add-client'};render();});
+  // Add accountant
+  document.getElementById('btn-add-accountant')?.addEventListener('click',()=>{modalData={type:'add-accountant'};render();});
+
+  // Edit client
+  document.querySelectorAll('.btn-edit-client').forEach(b=>b.addEventListener('click',()=>{
+    const t=tenants.find(x=>x.id===b.dataset.id);
+    if(t) {modalData={type:'edit-client',tenant:t};render();}
+  }));
+
+  // Toggle client
+  document.querySelectorAll('.btn-toggle-client').forEach(b=>b.addEventListener('click',async()=>{
+    const t=tenants.find(x=>x.id===b.dataset.id);
+    if(!t) return;
+    if(!confirm(t.is_active?'להשבית לקוח זה?':'להפעיל לקוח זה?')) return;
+    await dbAdmin.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
+    await loadData(); render();
+  }));
+
+  // Send expiry notifications
+  document.getElementById('btn-send-expiry')?.addEventListener('click', sendExpiryEmails);
+
+  // Modal bindings
+  if(modalData){
+    document.getElementById('modal-overlay')?.addEventListener('click',e=>{
+      if(e.target.id==='modal-overlay'){modalData=null;render();}
+    });
+    document.getElementById('mc-cancel')?.addEventListener('click',()=>{modalData=null;render();});
+    document.getElementById('ec-cancel')?.addEventListener('click',()=>{modalData=null;render();});
+    document.getElementById('ma-cancel')?.addEventListener('click',()=>{modalData=null;render();});
+
+    // Save new accountant
+    document.getElementById('ma-save')?.addEventListener('click', async()=>{
+      const email=document.getElementById('ma-email')?.value.trim();
+      if(!email){alert('הכנס אימייל');return;}
+      const checkedTenants=[...document.querySelectorAll('.ma-tenant-chk:checked')].map(c=>c.value);
+      if(!checkedTenants.length){alert('בחר לפחות לקוח אחד');return;}
+      for(const tid of checkedTenants){
+        const {error}=await dbAdmin.from('tenant_users').insert([{
+          tenant_id:tid, email, role:'accountant', accepted_at:new Date().toISOString(), is_active:true
+        }]);
+        if(error && !error.message.includes('duplicate')) console.error(error);
+      }
+      modalData=null; render();
+      if(activeTab==='accountants') loadAccountants();
+    });
+
+    // Save new client
+    document.getElementById('mc-save')?.addEventListener('click', async()=>{
+      const email=document.getElementById('mc-email').value.trim();
+      const name=document.getElementById('mc-name').value.trim();
+      const planVal=document.getElementById('mc-plan').value;
+      const cycle=document.getElementById('mc-cycle').value;
+      if(!email){alert('הכנס אימייל');return;}
+      const now=new Date();
+      let expires=new Date(now);
+      let dbPlan = planVal==='free'||planVal==='trial' ? 'starter' : planVal;
+
+      if(planVal==='free'){
+        expires=new Date(2099,11,31);
+      } else if(planVal==='trial'){
+        expires.setDate(expires.getDate()+7);
+      } else if(cycle==='yearly'){
+        expires.setFullYear(expires.getFullYear()+1);
+      } else {
+        expires.setMonth(expires.getMonth()+1);
+      }
+
+      const {data:tenant,error}=await dbAdmin.from('tenants').insert([{
+        owner_email:email, company_name:name, plan:dbPlan, billing_cycle:planVal==='free'||planVal==='trial'?'monthly':cycle,
+        plan_expires_at:expires.toISOString(), is_active:true
+      }]).select().single();
+      if(error){alert(error.message);return;}
+
+      await dbAdmin.from('tenant_users').insert([{tenant_id:tenant.id,email,role:'owner',accepted_at:now.toISOString()}]);
+      await dbAdmin.from('settings').insert([{tenant_id:tenant.id,current_balance:0}]);
+
+      // Send welcome email
+      try{
+        await fetch('https://api.resend.com/emails',{
+          method:'POST',
+          headers:{'Authorization':'Bearer '+RESEND_KEY,'Content-Type':'application/json'},
+          body:JSON.stringify({
+            from:'תזרים <noreply@tactigo.co.il>',to:[email],
+            subject:'ברוכים הבאים לתזרים!',
+            html:welcomeHTML(email,planVal)
+          })
+        });
+        await dbAdmin.from('email_log').insert([{tenant_id:tenant.id,to_email:email,template:'welcome'}]);
+      }catch(e){console.error(e);}
+
+      modalData=null; await loadData(); render();
+    });
+
+    // Save edit client
+    document.getElementById('ec-save')?.addEventListener('click', async()=>{
+      const t=modalData.tenant;
+      const name=document.getElementById('ec-name').value.trim();
+      const planVal=document.getElementById('ec-plan').value;
+      const cycle=document.getElementById('ec-cycle').value;
+      const expiresInput=document.getElementById('ec-expires').value;
+
+      let dbPlan = planVal==='free'||planVal==='trial' ? 'starter' : planVal;
+      let expiresDate = expiresInput ? new Date(expiresInput).toISOString() : null;
+
+      if(planVal==='free'){
+        expiresDate=new Date(2099,11,31).toISOString();
+      } else if(planVal==='trial' && !expiresInput){
+        const exp=new Date(); exp.setDate(exp.getDate()+7);
+        expiresDate=exp.toISOString();
+      }
+
+      await dbAdmin.from('tenants').update({
+        company_name:name||null, plan:dbPlan, billing_cycle:planVal==='free'||planVal==='trial'?'monthly':cycle,
+        plan_expires_at:expiresDate
+      }).eq('id',t.id);
+      modalData=null; await loadData(); render();
+    });
+  }
+}
+
+async function sendExpiryEmails() {
+  const now=new Date();
+  const soon=tenants.filter(t=>{
+    if(!t.plan_expires_at||!t.is_active) return false;
+    const d=(new Date(t.plan_expires_at)-now)/(864e5);
+    return d>0 && d<=30;
+  });
+  if(!soon.length){alert('אין לקוחות עם תוקף שפג בקרוב');return;}
+  if(!confirm(`לשלוח התראת תוקף ל-${soon.length} לקוחות?`)) return;
+
+  for(const t of soon){
+    try{
+      const url=t.plan==='pro'
+        ?'https://pay.sumit.co.il/omkr5y/vas2cv/vas2cw/payment/'
+        :'https://pay.sumit.co.il/omkr5y/vas26i/vas26j/payment/';
+      await fetch('https://api.resend.com/emails',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+RESEND_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          from:'תזרים <noreply@tactigo.co.il>',to:[t.owner_email],
+          subject:'תזרים — תוקף המנוי שלך עומד לפוג',
+          html:expiryHTML(t,url)
+        })
+      });
+      await dbAdmin.from('email_log').insert([{tenant_id:t.id,to_email:t.owner_email,template:'expiry_warning'}]);
+    }catch(e){console.error(e);}
+  }
+  alert(`נשלחו ${soon.length} התראות`);
+}
+
+function welcomeHTML(email,plan){
+  return `<div style="direction:rtl;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#07112B;color:#fff;border-radius:16px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0D1B4B,#07112B);padding:40px 30px;text-align:center">
+      <h1 style="color:#00AECC;margin:0 0 10px">ברוכים הבאים לתזרים!</h1>
+      <p style="color:rgba(255,255,255,.6);margin:0">החשבון שלך הופעל בהצלחה</p>
+    </div>
+    <div style="padding:30px">
+      <p>שלום,</p>
+      <p>המנוי שלך למסלול <strong style="color:#00AECC">${plan==='pro'?'PRO':plan==='free'?'חינמי':plan==='trial'?'ניסיון':'Starter'}</strong> הופעל.</p>
+      <div style="text-align:center;margin:30px 0">
+        <a href="https://tazrim.tactigo.co.il/login.html" style="background:#00AECC;color:#07112B;font-weight:700;padding:14px 32px;border-radius:12px;text-decoration:none;display:inline-block">כניסה לתזרים</a>
+      </div>
+      <p style="color:rgba(255,255,255,.4);font-size:13px">צוות Tactigo</p>
+    </div></div>`;
+}
+
+function expiryHTML(t,url){
+  return `<div style="direction:rtl;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#07112B;color:#fff;border-radius:16px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0D1B4B,#07112B);padding:40px 30px;text-align:center">
+      <h1 style="color:#F97316;margin:0 0 10px">⏰ תוקף המנוי עומד לפוג</h1>
+    </div>
+    <div style="padding:30px">
+      <p>שלום${t.company_name?' '+t.company_name:''},</p>
+      <p>המנוי שלך למסלול <strong>${t.plan==='pro'?'PRO':'Starter'}</strong> פג בתאריך <strong>${fmtDate(t.plan_expires_at)}</strong>.</p>
+      <p>כדי להמשיך להשתמש בתזרים, חדש את המנוי:</p>
+      <div style="text-align:center;margin:30px 0">
+        <a href="${url}" style="background:#F97316;color:#fff;font-weight:700;padding:14px 32px;border-radius:12px;text-decoration:none;display:inline-block">חידוש מנוי</a>
+      </div>
+      <p style="color:rgba(255,255,255,.4);font-size:13px">צוות Tactigo</p>
+    </div></div>`;
+}
+
+async function loadAccountants(){
+  const el=document.getElementById('accountants-list');
+  if(!el) return;
+  const {data:acctUsers}=await dbAdmin.from('tenant_users').select('*').eq('role','accountant').eq('is_active',true);
+  if(!acctUsers||!acctUsers.length){el.innerHTML='<div style="padding:20px;color:var(--text-dim)">אין חשבונאים</div>';return;}
+  // Group by email
+  const byEmail={};
+  for(const u of acctUsers){
+    if(!byEmail[u.email]) byEmail[u.email]=[];
+    byEmail[u.email].push(u);
+  }
+  let html=`<table class="admin-table">
+    <tr><th>חשבונאי</th><th>לקוחות מורשים</th><th>פעולות</th></tr>`;
+  for(const [email,rows] of Object.entries(byEmail)){
+    const tenantNames=rows.map(r=>{
+      const t=tenants.find(x=>x.id===r.tenant_id);
+      return t?(t.company_name||t.owner_email):'—';
+    }).join(', ');
+    const ids=rows.map(r=>r.id).join(',');
+    html+=`<tr>
+      <td><strong>${email}</strong></td>
+      <td style="font-size:13px;color:var(--text-mid)">${tenantNames}</td>
+      <td><button class="btn-action btn-danger btn-remove-acct" data-ids="${ids}" style="font-size:12px;padding:5px 10px">הסר</button></td>
+    </tr>`;
+  }
+  html+='</table>';
+  el.innerHTML=html;
+  // Bind remove buttons
+  el.querySelectorAll('.btn-remove-acct').forEach(b=>b.addEventListener('click',async()=>{
+    if(!confirm('להסיר חשבונאי זה?')) return;
+    const ids=b.dataset.ids.split(',');
+    for(const id of ids){
+      await dbAdmin.from('tenant_users').update({is_active:false}).eq('id',id);
+    }
+    loadAccountants();
+  }));
+}
+
+async function loadEmails(){
+  const {data}=await dbAdmin.from('email_log').select('*').order('sent_at',{ascending:false}).limit(50);
+  const el=document.getElementById('emails-list');
+  if(!el) return;
+  if(!data||!data.length){el.innerHTML='<div style="padding:20px;color:var(--text-dim)">אין מיילים</div>';return;}
+  el.innerHTML=`<table class="admin-table">
+    <tr><th>נמען</th><th>תבנית</th><th>תאריך</th></tr>
+    ${data.map(e=>`<tr>
+      <td>${e.to_email}</td>
+      <td><span class="badge badge-starter">${e.template}</span></td>
+      <td>${fmtDate(e.sent_at)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+async function loadData(){
+  const [{data:t},{data:p}]=await Promise.all([
+    dbAdmin.from('tenants').select('*').order('created_at',{ascending:false}),
+    dbAdmin.from('payments').select('*').order('paid_at',{ascending:false})
+  ]);
+  tenants=t||[];
+  payments=p||[];
+}
+
+async function init(){
+  try{
+    const {data:{session:s}}=await db.auth.getSession();
+    session=s;
+    if(s && s.user.email===ADMIN_EMAIL) await loadData();
+  }catch(e){console.error(e);}
+  render();
+  db.auth.onAuthStateChange(async(event,sess)=>{
+    if(event==='SIGNED_IN'){
+      if(sess.user.email!==ADMIN_EMAIL){await db.auth.signOut();window.location.href='login.html';return;}
+      session=sess; await loadData(); render();
+    }else if(event==='SIGNED_OUT'){
+      session=null; tenants=[]; payments=[]; render();
+    }else if(event==='TOKEN_REFRESHED'){session=sess;}
+  });
+}
+
+init();
+</script>
+</body>
+</html>
