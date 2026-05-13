@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="icon" type="image/png" href="logo.png"/>
+<meta name="description" content="תזרים — ניהול תזרים מזומנים | Tactigo"/>
+<title>תזרים | Tactigo</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@font-face {
+  font-family:'FbEinstein';
+  src:url('FbEinstein-Regular.otf') format('opentype');
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'FbEinstein','Segoe UI',sans-serif;direction:rtl}
+body{background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s}
+:root{--teal:#00AECC;--navy:#0D1B4B;--green:#10B981;--orange:#F97316;--red:#EF4444}
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#07112B}::-webkit-scrollbar-thumb{background:#00AECC33;border-radius:3px}
+select,select.modal-input,select.form-input,select.edit-input{background:#fff!important;color:#111!important;border:1px solid rgba(0,0,0,.15)!important}
+select option{background:#fff;color:#111}
+/* Glass */
+.glass{background:rgba(13,27,75,0.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(0,174,204,0.18);box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.07)}
+.glass-income{background:rgba(16,185,129,0.1);backdrop-filter:blur(20px);border:1px solid rgba(16,185,129,0.35);box-shadow:0 0 40px rgba(16,185,129,0.12)}
+.glass-expense{background:rgba(249,115,22,0.1);backdrop-filter:blur(20px);border:1px solid rgba(249,115,22,0.35);box-shadow:0 0 40px rgba(249,115,22,0.12)}
+/* Animations */
+@keyframes fadeIn{from{opacity:0;transform:scale(.96) translateY(-8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shrink{from{width:100%}to{width:0}}
+.anim-fade{animation:fadeIn .22s ease-out forwards}
+.anim-up{animation:slideUp .28s ease-out forwards}
+/* Layout */
+#app{min-height:100vh}
+/* ===== LOADER ===== */
+#loader{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.spinner{width:44px;height:44px;border:2px solid #00AECC;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+.login-logo{display:flex;justify-content:center;margin-bottom:28px}
+.login-logo img{height:44px}
+.login-title{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px}
+.login-sub{text-align:center;color:rgba(255,255,255,.35);font-size:13px;margin-bottom:28px}
+.form-label{color:rgba(255,255,255,.5);font-size:13px;display:block;margin-bottom:6px}
+.form-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 16px;color:#fff;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:14px}
+.form-input:focus{border-color:rgba(0,174,204,.5)}
+.btn-primary{width:100%;background:var(--teal);color:#07112B;font-weight:700;font-size:15px;padding:14px;border:none;border-radius:12px;cursor:pointer;transition:background .2s;margin-bottom:10px}
+.btn-primary:hover{background:#00C8EB}
+.btn-secondary{width:100%;background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-size:13px;padding:12px;border-radius:12px;cursor:pointer;transition:all .2s}
+.btn-secondary:hover{border-color:rgba(0,174,204,.4);color:#fff}
+.error-msg{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;border-radius:10px;padding:10px 14px;font-size:13px;text-align:center;margin-bottom:12px}
+/* ===== HEADER ===== */
+#header{position:sticky;top:0;z-index:30;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;background:rgba(7,17,43,.88);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.05)}
+.header-logo img{height:36px}
+.header-actions{display:flex;align-items:center;gap:10px}
+.btn-add{display:flex;align-items:center;gap:6px;background:var(--teal);color:#07112B;font-weight:700;font-size:13px;padding:10px 18px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 0 18px rgba(0,174,204,.28);transition:all .2s}
+.btn-add:hover{background:#00C8EB;box-shadow:0 0 28px rgba(0,174,204,.45)}
+.btn-logout{background:transparent;border:none;color:rgba(255,255,255,.3);font-size:13px;cursor:pointer;transition:color .2s;padding:8px 12px}
+.btn-logout:hover{color:rgba(255,255,255,.7)}
+/* ===== MAIN ===== */
+#main{max-width:1100px;margin:0 auto;padding:28px 16px;display:flex;flex-direction:column;gap:22px}
+/* ===== HERO CARDS ===== */
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:640px){.hero-grid{grid-template-columns:1fr}}
+.hero-card{padding:28px 28px 24px;border-radius:18px}
+.hero-label{color:rgba(255,255,255,.38);font-size:13px;margin-bottom:8px}
+.hero-value{font-size:44px;font-weight:700;line-height:1.1}
+.hero-sub{color:rgba(255,255,255,.3);font-size:12px;margin-top:6px}
+.balance-edit-icon{color:rgba(255,255,255,.2);font-size:18px;margin-right:8px;cursor:pointer;transition:color .2s;vertical-align:middle}
+.balance-edit-icon:hover{color:var(--teal)}
+.balance-edit-row{display:flex;align-items:center;gap:10px;margin-top:6px}
+.balance-input{background:rgba(255,255,255,.08);border:1px solid rgba(0,174,204,.4);border-radius:12px;padding:10px 14px;color:#fff;font-size:28px;font-weight:700;outline:none;width:200px;transition:border-color .2s}
+.balance-input:focus{border-color:var(--teal)}
+.btn-save{background:var(--teal);color:#07112B;border:none;font-weight:700;padding:10px 18px;border-radius:10px;cursor:pointer;font-size:14px;white-space:nowrap}
+.btn-cancel{background:transparent;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:20px;padding:8px}
+/* ===== TABLE CARD ===== */
+.table-card{border-radius:18px;overflow:clip}
+.table-header{padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between}
+.table-title{font-weight:700;font-size:16px}
+.table-count{color:rgba(255,255,255,.28);font-size:13px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{padding:10px 14px;text-align:right;font-size:11px;color:rgba(255,255,255,.28);font-weight:400;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap}
+.tbl td{padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:14px;vertical-align:middle}
+.tbl tr.tx-row{cursor:pointer;transition:background .15s}
+.tbl tr.tx-row:hover{background:rgba(255,255,255,.03)}
+.tbl tr.tx-row.selected{background:rgba(255,255,255,.05)}
+.tbl tr:last-child td{border-bottom:none}
+.empty-state{padding:48px;text-align:center;color:rgba(255,255,255,.18);font-size:14px}
+/* badges */
+.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+.badge-income{background:rgba(16,185,129,.12);color:#34D399}
+.badge-expense{background:rgba(249,115,22,.12);color:#FB923C}
+.badge-recurring{background:rgba(0,174,204,.1);color:#67E8F9;font-size:10px}
+.check-btn{width:22px;height:22px;border:2px solid rgba(255,255,255,.2);border-radius:6px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.check-btn:hover{border-color:var(--teal)}
+.del-btn{background:transparent;border:none;color:rgba(255,255,255,.18);cursor:pointer;font-size:15px;padding:4px 8px;transition:color .15s;border-radius:6px}
+.del-btn:hover{color:var(--red);background:rgba(239,68,68,.1)}
+/* running balance */
+.bal-neg{color:var(--red);font-weight:700}
+.bal-pos{color:rgba(255,255,255,.75)}
+.td-dim{color:rgba(255,255,255,.45)}
+/* ===== EDIT ROW ===== */
+.edit-row td{padding:4px 14px 14px}
+.edit-card{border-radius:14px;padding:16px 18px}
+.edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.edit-label{color:rgba(255,255,255,.38);font-size:11px;display:block;margin-bottom:4px}
+.edit-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 10px;color:#fff;font-size:13px;outline:none}
+.edit-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
+.type-toggle-btn{font-size:12px;padding:6px 12px;border-radius:20px;border:1px solid;cursor:pointer;background:transparent;transition:all .2s}
+.btn-save-sm{background:rgba(0,174,204,.8);color:#07112B;border:none;font-weight:700;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px}
+.btn-save-sm:hover{background:var(--teal)}
+.btn-cancel-sm{background:transparent;border:none;color:rgba(255,255,255,.3);font-size:13px;cursor:pointer;padding:8px 12px}
+/* ===== MODAL ===== */
+.overlay{position:fixed;inset:0;background:rgba(4,11,30,.82);backdrop-filter:blur(6px);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.modal{width:100%;max-width:460px;border-radius:24px;overflow:clip;margin:auto}
+.type-toggle{display:flex;border-bottom:1px solid rgba(255,255,255,.07)}
+.type-btn{flex:1;padding:16px;font-size:16px;font-weight:700;border:none;background:transparent;color:rgba(255,255,255,.3);cursor:pointer;transition:all .2s}
+.type-btn.active-expense{background:rgba(249,115,22,.28);color:#fff}
+.type-btn.active-income{background:rgba(16,185,129,.28);color:#fff}
+.modal-body{padding:22px 24px 24px;display:flex;flex-direction:column;gap:14px}
+.modal-label{color:rgba(255,255,255,.45);font-size:13px;display:block;margin-bottom:5px}
+.modal-input{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:11px 14px;color:#fff;font-size:15px;outline:none;transition:border-color .2s}
+.modal-input:focus{border-color:rgba(0,174,204,.45)}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.amount-input{font-size:22px;font-weight:700}
+.recurring-toggle{display:flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;cursor:pointer;transition:all .2s;user-select:none}
+.recurring-toggle:hover{border-color:rgba(255,255,255,.2)}
+.chk-box{width:20px;height:20px;border:2px solid rgba(255,255,255,.28);border-radius:5px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.chk-box.checked{background:var(--teal);border-color:var(--teal)}
+.chk-label{color:rgba(255,255,255,.6);font-size:14px}
+.months-row{display:flex;align-items:center;gap:10px;padding:0 4px}
+.months-input{width:80px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:8px 10px;color:#fff;text-align:center;font-size:15px;outline:none}
+.modal-actions{display:flex;gap:10px;margin-top:4px;position:relative;z-index:1}
+.btn-modal-cancel{flex:1;background:transparent;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.45);padding:13px;border-radius:12px;cursor:pointer;font-size:14px;transition:all .2s}
+.btn-modal-cancel:hover{border-color:rgba(255,255,255,.2);color:#fff}
+.btn-modal-confirm{flex:2;border:none;font-weight:700;font-size:15px;padding:13px;border-radius:12px;cursor:pointer;transition:all .2s}
+/* ===== NOTIFICATION ===== */
+#notif{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:60;min-width:320px;max-width:480px;border-radius:18px;padding:18px 24px;text-align:center;backdrop-filter:blur(20px)}
+.notif-title{font-weight:700;font-size:16px;margin-bottom:4px}
+.notif-sub{color:rgba(255,255,255,.55);font-size:13px}
+.notif-bar-wrap{margin-top:12px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.notif-bar{height:3px;border-radius:2px;animation:shrink 5s linear forwards}
+/* ===== SEARCH BAR ===== */
+.search-wrap{display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:14px}
+.search-input{flex:1;background:transparent;border:none;color:#fff;font-size:14px;outline:none;min-width:0}
+.search-input::placeholder{color:rgba(255,255,255,.28)}
+.search-clear{background:transparent;border:none;color:rgba(255,255,255,.35);cursor:pointer;font-size:17px;padding:2px 6px;border-radius:6px;line-height:1;transition:color .15s;flex-shrink:0}
+.search-clear:hover{color:#fff}
+.search-icon{color:rgba(255,255,255,.3);font-size:15px;flex-shrink:0}
+
+/* ===== THEME VARIABLES ===== */
+:root{--bg:#07112B;--bg2:#0D1B4B;--text:#fff;--text-dim:rgba(255,255,255,.35);--text-mid:rgba(255,255,255,.55);--border:rgba(255,255,255,.1);--glass-bg:rgba(13,27,75,0.6);--glass-border:rgba(0,174,204,0.18);--shadow:rgba(0,0,0,0.4);--card-hover:rgba(255,255,255,.03);--input-bg:rgba(255,255,255,.06)}
+[data-theme="light"]{--bg:#f0f2f5;--bg2:#e4e7ec;--text:#1a1a2e;--text-dim:rgba(0,0,0,.4);--text-mid:rgba(0,0,0,.55);--border:rgba(0,0,0,.1);--glass-bg:rgba(255,255,255,0.75);--glass-border:rgba(0,174,204,0.25);--shadow:rgba(0,0,0,0.08);--card-hover:rgba(0,0,0,.03);--input-bg:rgba(0,0,0,.04)}
+[data-theme="light"] .glass{background:var(--glass-bg);border-color:var(--glass-border);box-shadow:0 8px 32px var(--shadow),inset 0 1px 0 rgba(255,255,255,0.5)}
+[data-theme="light"] .glass-income{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.3)}
+[data-theme="light"] .glass-expense{background:rgba(249,115,22,0.08);border-color:rgba(249,115,22,0.3)}
+[data-theme="light"] body{color:var(--text)}
+[data-theme="light"] .form-input,[data-theme="light"] .modal-input,[data-theme="light"] .edit-input,[data-theme="light"] .search-input{color:var(--text);background:var(--input-bg)}
+[data-theme="light"] .form-input::placeholder,[data-theme="light"] .modal-input::placeholder,[data-theme="light"] .search-input::placeholder{color:var(--text-dim)}
+[data-theme="light"] .tbl td,[data-theme="light"] .tbl th{color:var(--text)}
+[data-theme="light"] .balance-input{color:var(--text);background:var(--input-bg)}
+[data-theme="light"] .login-title,[data-theme="light"] .login-sub{color:var(--text)}
+[data-theme="light"] .error-msg{color:#dc2626}
+[data-theme="light"] #notif{color:var(--text)}
+/* Theme toggle */
+.theme-toggle{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);width:36px;height:36px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .2s}
+.theme-toggle:hover{border-color:var(--teal);color:#fff}
+[data-theme="light"] .theme-toggle{border-color:rgba(0,0,0,.15);color:rgba(0,0,0,.5)}
+[data-theme="light"] .theme-toggle:hover{color:#000}
+/* ===== ONBOARDING ===== */
+.onboard-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at top,#0D1B4B 0%,#07112B 60%)}
+[data-theme="light"] .onboard-page{background:radial-gradient(ellipse at top,#e4e7ec 0%,#f0f2f5 60%)}
+.onboard-card{width:100%;max-width:680px;padding:40px 36px;border-radius:24px}
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
+@media(max-width:540px){.plan-grid{grid-template-columns:1fr}}
+.plan-box{border-radius:18px;padding:24px;cursor:pointer;transition:all .25s;border:2px solid transparent;text-align:center}
+.plan-box:hover{transform:translateY(-2px)}
+.plan-box.selected{border-color:var(--teal);box-shadow:0 0 30px rgba(0,174,204,.2)}
+.plan-name{font-size:22px;font-weight:700;margin-bottom:4px}
+.plan-price{font-size:28px;font-weight:700;color:var(--teal);margin:12px 0}
+.plan-price small{font-size:14px;font-weight:400;color:var(--text-dim)}
+.plan-feat{color:var(--text-mid);font-size:13px;line-height:1.8;text-align:right;list-style:none;padding:0}
+.plan-feat li::before{content:'✓ ';color:var(--teal)}
+.cycle-toggle{display:flex;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--border);margin:16px auto;width:fit-content}
+.cycle-btn{padding:10px 24px;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
+.cycle-btn.active{background:var(--teal);color:#07112B}
+.btn-checkout{width:100%;background:var(--teal);color:#07112B;font-weight:700;font-size:16px;padding:16px;border:none;border-radius:14px;cursor:pointer;transition:all .2s;margin-top:8px}
+.btn-checkout:hover{background:#00C8EB}
+.btn-checkout:disabled{opacity:.4;cursor:not-allowed}
+/* ===== TRIAL BANNER ===== */
+.trial-banner{background:linear-gradient(135deg,#DC2626,#B91C1C);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-radius:14px;margin:0 20px 16px;box-shadow:0 4px 20px rgba(220,38,38,.25);animation:fadeIn .3s ease-out}
+.trial-banner .trial-text{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.trial-banner .trial-days{background:rgba(255,255,255,.2);padding:4px 12px;border-radius:8px;font-weight:800;font-size:15px;min-width:28px;text-align:center}
+.trial-banner .btn-upgrade{background:#fff;color:#DC2626;font-weight:700;font-size:13px;padding:10px 22px;border:none;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.trial-banner .btn-upgrade:hover{background:#FEE2E2;transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+@media(max-width:540px){.trial-banner{flex-direction:column;text-align:center}}
+/* ===== SETTINGS PANEL ===== */
+.settings-overlay{position:fixed;inset:0;background:rgba(4,11,30,.82);backdrop-filter:blur(6px);z-index:55;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.settings-card{width:100%;max-width:520px;border-radius:24px;overflow:clip;margin:auto}
+.settings-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.settings-body{padding:24px;display:flex;flex-direction:column;gap:18px}
+.user-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:12px;border:1px solid var(--border)}
+.user-email{font-size:14px;font-weight:600}
+.user-role{font-size:12px;color:var(--text-dim)}
+.btn-remove-user{background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:6px 10px;border-radius:8px;transition:all .2s}
+.btn-remove-user:hover{background:rgba(239,68,68,.1)}
+.add-user-row{display:flex;gap:10px}
+.add-user-row input{flex:1}
+/* ===== MULTI-BANK (PRO) ===== */
+.balance-section{display:flex;flex-direction:column;gap:14px}
+.combined-balance{border-radius:18px;padding:24px 20px;text-align:center;border:2px solid var(--teal);background:linear-gradient(135deg,rgba(0,174,204,.08),rgba(13,27,75,.6));backdrop-filter:blur(20px)}
+.combined-balance .cb-label{font-size:13px;color:var(--text-mid);margin-bottom:6px;letter-spacing:.5px}
+.combined-balance .cb-value{font-size:36px;font-weight:700;line-height:1.1}
+.combined-balance .cb-zero{font-size:12px;margin-top:8px}
+.banks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+@media(max-width:600px){.banks-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:400px){.banks-grid{grid-template-columns:1fr}}
+.bank-card{border-radius:16px;padding:18px 14px;text-align:center;transition:all .2s}
+.bank-card[data-bank-id]:hover{border-color:rgba(0,174,204,.4);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,174,204,.15)}
+.bank-card .bk-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.bank-card .bk-sub{font-size:11px;color:var(--text-dim);margin-bottom:6px}
+.bank-card .bk-balance{font-size:24px;font-weight:700}
+.bank-card .bk-zero{font-size:11px;margin-top:6px}
+.btn-add-bank{background:transparent;border:1px dashed var(--border);color:var(--text-dim);border-radius:16px;padding:18px;cursor:pointer;font-size:14px;transition:all .2s;width:100%}
+.btn-add-bank:hover{border-color:var(--teal);color:var(--teal)}
+/* ===== BANK MODAL ===== */
+.bank-modal{background:var(--glass-bg);backdrop-filter:blur(20px);border:1px solid rgba(0,174,204,.18);border-radius:20px;padding:24px;width:90%;max-width:420px;animation:fadeIn .22s ease-out}
+.bank-modal .modal-label{color:var(--text-mid);font-size:13px;display:block;margin-bottom:6px;margin-top:14px}
+.bank-modal .modal-input{width:100%;background:var(--input-bg,rgba(255,255,255,.06));border:1px solid var(--border,rgba(255,255,255,.1));border-radius:12px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;transition:border-color .2s}
+.bank-modal .modal-input:focus{border-color:rgba(0,174,204,.5)}
+.bank-modal select.modal-input{cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 14px center;padding-left:36px}
+.bank-modal .modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* ===== ACCOUNTANT DASH ===== */
+.acct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:20px}
+.acct-card{border-radius:18px;padding:20px;cursor:pointer;transition:all .2s}
+.acct-card:hover{transform:translateY(-2px)}
+.acct-client{font-size:16px;font-weight:700;margin-bottom:8px}
+.acct-balance{font-size:20px;font-weight:700;margin-bottom:4px}
+.acct-zero{font-size:12px}
+.btn-settings{background:transparent;border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);width:36px;height:36px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s}
+.btn-settings:hover{border-color:var(--teal);color:#fff}
+[data-theme="light"] .btn-settings{border-color:rgba(0,0,0,.12);color:rgba(0,0,0,.4)}
+/* ===== COMPREHENSIVE LIGHT MODE OVERRIDES ===== */
+[data-theme="light"] #header{background:rgba(255,255,255,.92);border-bottom-color:rgba(0,0,0,.06)}
+[data-theme="light"] .btn-logout{color:rgba(0,0,0,.4)}
+[data-theme="light"] .btn-logout:hover{color:rgba(0,0,0,.7)}
+[data-theme="light"] .hero-label{color:var(--text-mid)}
+[data-theme="light"] .hero-value{color:var(--text)}
+[data-theme="light"] .hero-sub{color:var(--text-dim)}
+[data-theme="light"] .balance-edit-icon{color:rgba(0,0,0,.25)}
+[data-theme="light"] .balance-input{color:var(--text);background:var(--input-bg);border-color:rgba(0,174,204,.4)}
+[data-theme="light"] .btn-cancel{color:rgba(0,0,0,.35)}
+[data-theme="light"] .table-header{border-bottom-color:rgba(0,0,0,.06)}
+[data-theme="light"] .table-title{color:var(--text)}
+[data-theme="light"] .table-count{color:var(--text-dim)}
+[data-theme="light"] .tbl th{color:rgba(0,0,0,.4);border-bottom-color:rgba(0,0,0,.06)}
+[data-theme="light"] .tbl td{border-bottom-color:rgba(0,0,0,.04)}
+[data-theme="light"] .tbl tr.tx-row:hover{background:rgba(0,0,0,.02)}
+[data-theme="light"] .tbl tr.tx-row.selected{background:rgba(0,0,0,.04)}
+[data-theme="light"] .empty-state{color:rgba(0,0,0,.25)}
+[data-theme="light"] .check-btn{border-color:rgba(0,0,0,.2)}
+[data-theme="light"] .del-btn{color:rgba(0,0,0,.2)}
+[data-theme="light"] .del-btn:hover{color:var(--red);background:rgba(239,68,68,.08)}
+[data-theme="light"] .bal-pos{color:rgba(0,0,0,.7)}
+[data-theme="light"] .bal-neg{color:#dc2626}
+[data-theme="light"] .td-dim{color:rgba(0,0,0,.55)}
+[data-theme="light"] .badge-income{background:rgba(16,185,129,.1);color:#059669}
+[data-theme="light"] .badge-expense{background:rgba(249,115,22,.1);color:#ea580c}
+[data-theme="light"] .badge-recurring{background:rgba(0,174,204,.08);color:#0891b2}
+[data-theme="light"] .edit-label{color:rgba(0,0,0,.45)}
+[data-theme="light"] .edit-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
+[data-theme="light"] .btn-cancel-sm{color:rgba(0,0,0,.4)}
+[data-theme="light"] .type-toggle{border-bottom-color:rgba(0,0,0,.06)}
+[data-theme="light"] .type-btn{color:rgba(0,0,0,.3)}
+[data-theme="light"] .type-btn.active-expense{background:rgba(249,115,22,.15);color:#ea580c}
+[data-theme="light"] .type-btn.active-income{background:rgba(16,185,129,.15);color:#059669}
+[data-theme="light"] .modal-label{color:rgba(0,0,0,.5)}
+[data-theme="light"] .modal-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
+[data-theme="light"] .recurring-toggle{border-color:var(--border)}
+[data-theme="light"] .recurring-toggle:hover{border-color:rgba(0,0,0,.2)}
+[data-theme="light"] .chk-box{border-color:rgba(0,0,0,.25)}
+[data-theme="light"] .chk-label{color:rgba(0,0,0,.55)}
+[data-theme="light"] .months-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
+[data-theme="light"] .btn-modal-cancel{border-color:var(--border);color:rgba(0,0,0,.45)}
+[data-theme="light"] .btn-modal-cancel:hover{border-color:rgba(0,0,0,.2);color:var(--text)}
+[data-theme="light"] .notif-sub{color:rgba(0,0,0,.5)}
+[data-theme="light"] .notif-bar-wrap{background:rgba(0,0,0,.08)}
+[data-theme="light"] .search-input{color:var(--text)}
+[data-theme="light"] .search-input::placeholder{color:rgba(0,0,0,.3)}
+[data-theme="light"] .search-clear{color:rgba(0,0,0,.35)}
+[data-theme="light"] .search-clear:hover{color:var(--text)}
+[data-theme="light"] .search-icon{color:rgba(0,0,0,.35)}
+[data-theme="light"] .overlay{background:rgba(255,255,255,.82)}
+[data-theme="light"] .settings-overlay{background:rgba(255,255,255,.82)}
+[data-theme="light"] .btn-secondary{border-color:rgba(0,0,0,.12);color:rgba(0,0,0,.5)}
+[data-theme="light"] .btn-secondary:hover{border-color:rgba(0,174,204,.4);color:var(--text)}
+[data-theme="light"] .form-label{color:rgba(0,0,0,.5)}
+[data-theme="light"] .form-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
+[data-theme="light"] .combined-balance{background:linear-gradient(135deg,rgba(0,174,204,.06),rgba(255,255,255,.8))}
+[data-theme="light"] .combined-balance .cb-value{color:var(--text)}
+[data-theme="light"] .bank-card .bk-balance{color:var(--teal)}
+[data-theme="light"] .bank-modal .modal-label{color:rgba(0,0,0,.5)}
+[data-theme="light"] .bank-modal .modal-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
+[data-theme="light"] .type-toggle-btn{color:var(--text-mid)}
+[data-theme="light"] .btn-save-sm{background:var(--teal);color:#fff}
+[data-theme="light"] .acct-card{color:var(--text)}
+[data-theme="light"] .plan-box{color:var(--text)}
+[data-theme="light"] .plan-name{color:var(--text)}
+[data-theme="light"] .plan-price{color:var(--text)}
+[data-theme="light"] .plan-feat li{color:var(--text-mid)}
+[data-theme="light"] .cycle-btn{color:rgba(0,0,0,.4);border-color:var(--border)}
+[data-theme="light"] .cycle-btn.active{color:var(--teal)}
+[data-theme="light"] ::-webkit-scrollbar-track{background:var(--bg)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="loader"><div class="spinner"></div></div>
+</div>
+
+<script type="module">
+// Global error catcher
+window.addEventListener('error', e => console.error('[GLOBAL ERROR]', e.message, e.filename, e.lineno));
+window.addEventListener('unhandledrejection', e => console.error('[UNHANDLED PROMISE]', e.reason));
+
+const { createClient } = supabase;
+const SB_URL = 'https://chzoulucwbhvulgopuah.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NjYzNiwiZXhwIjoyMDkzNzMyNjM2fQ.xmm4AzHmLc9M-wucQ_9ZeikOTWvYGCT1cgsTgMHKzjM';
+const db = createClient(SB_URL, SB_KEY);
+// Admin client — never tracks user session, always uses service role key → bypasses RLS
+const dbAdmin = createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+const ADMIN_EMAIL = 'office@tactigo.co.il';
+const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
+
+// ─── STATE ───────────────────────────────────────────
+let session=null, balance=0, transactions=[], editingBalance=false;
+let currentTenant=null, tenantBanks=[], userRole=null, tenantUsers=[];
+let settingsOpen=false, onboardPlan='starter', onboardCycle='monthly';
+let modalOpen=false, modalType='expense', modalRecurring=false;
+let selectedTxId=null, notifTimer=null;
+let confirmModal=null; // { type:'delete'|'complete', id, name, amount?, txType? }
+let searchQuery='';
+
+// ─── HELPERS ─────────────────────────────────────────
+const fmt = n => new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(n);
+const fmtDate = s => { if(!s) return ''; const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'}); };
+const daysBetween = (a,b) => Math.round((new Date(b)-new Date(a))/(864e5));
+const daysFromNow = s => Math.ceil((new Date(s+' 00:00:00')-new Date())/(864e5));
+
+const matchesSearch=(t,q)=>{ const lq=q.toLowerCase(); return (t.description||'').toLowerCase().includes(lq)||(t.vendor||'').toLowerCase().includes(lq)||String(t.amount).includes(lq); };
+
+// Tenant type helpers — DB only allows plan='starter'/'pro' and billing_cycle='monthly'/'yearly'
+// We identify trial/free by expiry date: free=2090+, trial=short expiry with no payment logic
+function isFreeAccount(t){ return t && t.plan_expires_at && new Date(t.plan_expires_at).getFullYear()>=2090; }
+function isTrialAccount(t){ return t && !isFreeAccount(t) && t.plan==='starter' && t.plan_expires_at && (new Date(t.plan_expires_at)-new Date(t.plan_started_at||t.created_at))/(864e5)<=8; }
+
+// Bank info helpers — store structured data in bank_name as JSON
+function parseBankInfo(b) {
+  try { const d=JSON.parse(b.bank_name); return {name:d.name||'',bank:d.bank||'',branch:d.branch||'',account:d.account||'',balance:parseFloat(b.balance||0),id:b.id}; }
+  catch(e){ return {name:b.bank_name||'',bank:'',branch:'',account:'',balance:parseFloat(b.balance||0),id:b.id}; }
+}
+function bankDisplayName(b){ const i=parseBankInfo(b); return i.name||(i.bank?i.bank+' '+i.branch:'חשבון'); }
+function bankSubtitle(b){ const i=parseBankInfo(b); const parts=[]; if(i.bank)parts.push(i.bank); if(i.branch)parts.push('סניף '+i.branch); if(i.account)parts.push('ח-ן '+i.account); return parts.join(' · '); }
+
+function calcZeroDate(txs, bal) {
+  let run = bal;
+  const sorted = [...txs].filter(t=>!t.is_completed).sort((a,b)=>a.date.localeCompare(b.date));
+  for(const t of sorted){
+    run += t.type==='income' ? +t.amount : -t.amount;
+    if(run<=0) return t.date;
+  }
+  return null;
+}
+
+function futureWithBalance(txs, bal) {
+  // Compute per-bank running balances + unified running balance
+  const bankBals = {};
+  tenantBanks.forEach(b=>{ bankBals[b.id] = parseFloat(b.balance||0); });
+  let totalRun = tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : bal;
+  return txs.filter(t=>!t.is_completed).sort((a,b)=>a.date.localeCompare(b.date)).map(t=>{
+    const delta = t.type==='income' ? +t.amount : -t.amount;
+    totalRun += delta;
+    let bankRunning = null;
+    if(t.bank_id && bankBals[t.bank_id] !== undefined){
+      bankBals[t.bank_id] += delta;
+      bankRunning = bankBals[t.bank_id];
+    }
+    return {...t, runningBalance: totalRun, bankBalance: bankRunning};
+  });
+}
+
+// ─── RENDER ──────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  if(!session){ window.location.href='login.html'; return; }
+  if(session.user.email === ADMIN_EMAIL){
+    window.location.href = 'admin.html'; return;
+  }
+  if(!currentTenant && userRole!=='accountant'){
+    app.innerHTML = renderOnboarding(); bindOnboarding(); return;
+  }
+  if(userRole==='accountant' && !currentTenant){
+    app.innerHTML = renderAccountantDash(); bindAccountantDash(); return;
+  }
+  if(currentTenant && !currentTenant.is_active){
+    app.innerHTML = renderExpired(); bindExpired(); return;
+  }
+  const future = futureWithBalance(transactions, balance);
+  const completed = transactions.filter(t=>t.is_completed).sort((a,b)=>b.completed_at?.localeCompare(a.completed_at||'')||0);
+  const zeroDate = calcZeroDate(transactions, balance);
+  const fFuture = searchQuery ? future.filter(t=>matchesSearch(t,searchQuery)) : future;
+  const fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : completed;
+
+  app.innerHTML = `
+  <div id="header" class="anim-up">
+    <div class="header-actions">
+      ${userRole==='accountant'?`<button class="btn-add" id="btn-back-acct" style="background:transparent;border:1px solid var(--teal);color:var(--teal);box-shadow:none">← חזרה לדשבורד</button>`:''}
+      ${userRole!=='accountant'?`<button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>`:''}
+      ${userRole!=='accountant'?`<button class="btn-settings" id="btn-settings" title="הגדרות">⚙</button>`:''}
+      <button class="theme-toggle" id="theme-toggle" title="מצב בהיר/כהה">🌙</button>
+      <button class="btn-logout" id="btn-logout">יציאה</button>
+    </div>
+    <div class="header-logo"><img src="white-logo.png" alt="Tactigo"/></div>
+  </div>
+  ${renderTrialBanner()}
+  <div id="main">
+    <div class="hero-grid">
+      ${currentTenant?.plan==='pro' ? renderMultiBankCards() : renderBalanceCard(zeroDate)}
+      ${renderZeroCard(zeroDate)}
+    </div>
+    <div class="search-wrap glass">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" placeholder="חיפוש לפי תיאור, ספק, סכום..." value="${searchQuery.replace(/"/g,'&quot;')}"/>
+      <button class="search-clear" id="search-clear" title="נקה חיפוש" style="visibility:${searchQuery?'visible':'hidden'}">✕</button>
+    </div>
+    <div id="tables-section">
+    ${renderFutureTable(fFuture)}
+    ${fCompleted.length ? renderCompletedTable(fCompleted) : ''}
+    </div>
+  </div>
+  ${modalOpen ? renderModal() : ''}
+  ${settingsOpen ? renderSettings() : ''}
+  ${confirmModal ? renderConfirmModal() : ''}
+  `;
+  bindDashboard(future, completed, zeroDate);
+}
+
+
+// ─── BALANCE CARD ────────────────────────────────────
+function renderBalanceCard(zeroDate) {
+  if(editingBalance) return `
+  <div class="hero-card glass anim-fade">
+    <div class="hero-label">יתרה נוכחית בבנק</div>
+    <div class="balance-edit-row">
+      <input class="balance-input" id="bal-input" type="number" value="${balance}" autofocus/>
+      <button class="btn-save" id="btn-save-bal">שמור</button>
+      <button class="btn-cancel" id="btn-cancel-bal">✕</button>
+    </div>
+  </div>`;
+  return `
+  <div class="hero-card glass anim-up" id="bal-card" style="cursor:pointer" title="לחץ לעריכה">
+    <div class="hero-label">יתרה נוכחית בבנק</div>
+    <div class="hero-value" style="color:${balance<0?'var(--red)':'#fff'}">${fmt(balance)}<span class="balance-edit-icon" title="עריכה">✏️</span></div>
+  </div>`;
+}
+
+function renderZeroCard(zeroDate) {
+  const neg = !!zeroDate;
+  return `<div class="hero-card glass anim-up" style="border-color:${neg?'rgba(239,68,68,.2)':'rgba(16,185,129,.2)'}">
+    <div class="hero-label">תאריך כניסה צפוי למינוס</div>
+    ${neg
+      ? `<div class="hero-value" style="color:var(--red);font-size:32px">${fmtDate(zeroDate)}</div>
+         <div class="hero-sub">בעוד ${daysFromNow(zeroDate)} ימים</div>`
+      : `<div class="hero-value" style="color:var(--green);font-size:28px">אין צפי למינוס ✓</div>
+         <div class="hero-sub">כל התנועות מאוזנות</div>`
+    }
+  </div>`;
+}
+
+// ─── TABLES ──────────────────────────────────────────
+function renderFutureTable(future) {
+  return `<div class="table-card glass">
+    <div class="table-header">
+      <div class="table-title">📋 תנועות עתידיות</div>
+      <div class="table-count">${future.length} תנועות</div>
+    </div>
+    ${future.length===0?`<div class="empty-state">אין תנועות עתידיות מתוכננות</div>`:`
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr>
+        <th></th><th>תיאור</th><th>ספק</th><th>סכום</th><th>תאריך</th><th>סוג</th>${tenantBanks.length>0?'<th>בנק</th><th>יתרה בחשבון</th>':''}<th>יתרה ${tenantBanks.length>0?'מאוחדת':'צפויה'}</th><th></th>
+      </tr></thead>
+      <tbody>
+      ${future.map(t=>`
+        <tr class="tx-row${selectedTxId===t.id?' selected':''}" data-id="${t.id}">
+          <td><button class="check-btn complete-btn" data-id="${t.id}" title="סמן כבוצע"></button></td>
+          <td><span style="font-weight:600">${t.description}</span>${t.is_recurring?` <span class="badge badge-recurring">חוזרת</span>`:''}</td>
+          <td class="td-dim">${t.vendor||'—'}</td>
+          <td><span style="font-weight:700;color:${t.type==='income'?'var(--green)':'var(--orange)'}">${t.type==='income'?'+':'−'}${fmt(t.amount)}</span></td>
+          <td class="td-dim" style="white-space:nowrap;font-size:13px">${fmtDate(t.date)}</td>
+          <td><span class="badge ${t.type==='income'?'badge-income':'badge-expense'}">${t.type==='income'?'הכנסה':'הוצאה'}</span></td>
+          ${tenantBanks.length>0?`<td class="td-dim" style="font-size:13px">${t.bank_id?bankDisplayName(tenantBanks.find(b=>b.id===t.bank_id)||{bank_name:''}):'—'}</td><td><span class="${t.bankBalance!==null?(t.bankBalance<0?'bal-neg':'bal-pos'):'bal-pos'}">${t.bankBalance!==null?fmt(t.bankBalance):'—'}</span></td>`:''}
+          <td><span class="${t.runningBalance<0?'bal-neg':'bal-pos'}">${fmt(t.runningBalance)}</span></td>
+          <td><button class="del-btn" data-id="${t.id}">🗑</button></td>
+        </tr>
+        ${selectedTxId===t.id?`<tr class="edit-row" data-edit-id="${t.id}"><td colspan="${tenantBanks.length>0?'10':'8'}">${renderEditCard(t)}</td></tr>`:''}
+      `).join('')}
+      </tbody>
+    </table></div>`}
+  </div>`;
+}
+
+function renderCompletedTable(completed) {
+  return `<div class="table-card glass">
+    <div class="table-header">
+      <div class="table-title">✅ תנועות שבוצעו</div>
+      <div class="table-count">${completed.length} תנועות</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr><th>תיאור</th><th>ספק</th><th>סכום</th><th>תאריך</th><th>סוג</th><th></th></tr></thead>
+      <tbody>
+      ${completed.map(t=>`
+        <tr class="tx-row" data-id="${t.id}">
+          <td style="opacity:.6">${t.description}</td>
+          <td class="td-dim" style="font-size:13px">${t.vendor||'—'}</td>
+          <td style="opacity:.6"><span style="color:${t.type==='income'?'var(--green)':'var(--orange)'}">${t.type==='income'?'+':'−'}${fmt(t.amount)}</span></td>
+          <td class="td-dim" style="font-size:13px">${fmtDate(t.date)}</td>
+          <td><span class="badge ${t.type==='income'?'badge-income':'badge-expense'}">${t.type==='income'?'הכנסה':'הוצאה'}</span></td>
+          <td><button class="del-btn" data-id="${t.id}">🗑</button></td>
+        </tr>
+      `).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+// ─── EDIT CARD ───────────────────────────────────────
+function renderEditCard(t) {
+  const isIncome = t.type==='income';
+  const cls = isIncome?'glass-income':'glass-expense';
+  return `<div class="edit-card ${cls}">
+    <div class="edit-grid">
+      <div><label class="edit-label">תיאור</label><input class="edit-input" id="ed-desc" value="${t.description}"/></div>
+      <div><label class="edit-label">ספק</label><input class="edit-input" id="ed-vendor" value="${t.vendor||''}"/></div>
+      <div><label class="edit-label">סכום</label><input class="edit-input" id="ed-amount" type="number" value="${t.amount}"/></div>
+      <div><label class="edit-label">תאריך</label><input class="edit-input" id="ed-date" type="date" value="${t.date}"/></div>
+      ${tenantBanks.length>0 ? `<div><label class="edit-label">חשבון בנק</label><select class="edit-input" id="ed-bank">
+        <option value="">בחרו חשבון...</option>
+        ${tenantBanks.map(b=>`<option value="${b.id}"${t.bank_id===b.id?' selected':''}>${bankDisplayName(b)}</option>`).join('')}
+      </select></div>` : ''}
+    </div>
+    <div class="edit-actions">
+      <button class="type-toggle-btn" id="ed-type-toggle" style="border-color:${isIncome?'var(--green)':'var(--orange)'};color:${isIncome?'var(--green)':'var(--orange)'}" data-type="${t.type}">
+        ${isIncome?'💚 הכנסה':'🔴 הוצאה'} — לחץ להחלפה
+      </button>
+      <div style="flex:1"></div>
+      <button class="btn-cancel-sm" id="ed-cancel">ביטול</button>
+      <button class="btn-save-sm" id="ed-save" data-id="${t.id}">שמור</button>
+    </div>
+  </div>`;
+}
+
+// ─── MODAL ───────────────────────────────────────────
+function renderModal() {
+  const isIncome = modalType==='income';
+  const accentColor = isIncome?'var(--green)':'var(--orange)';
+  const modalCls = isIncome?'glass-income':'glass-expense';
+  const today = new Date().toISOString().split('T')[0];
+  return `<div class="overlay" id="modal-overlay">
+    <div class="modal ${modalCls} anim-fade">
+      <div class="type-toggle">
+        <button class="type-btn${modalType==='expense'?' active-expense':''}" id="modal-expense">🔴 הוצאה</button>
+        <button class="type-btn${modalType==='income'?' active-income':''}" id="modal-income">💚 הכנסה</button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label class="modal-label">תיאור *</label>
+          <input class="modal-input" id="m-desc" placeholder="שכר דירה, משכורת..."/>
+        </div>
+        <div>
+          <label class="modal-label">ספק / גורם</label>
+          <input class="modal-input" id="m-vendor" placeholder="שם הספק"/>
+        </div>
+        <div class="modal-row">
+          <div>
+            <label class="modal-label">סכום (₪) *</label>
+            <input class="modal-input amount-input" id="m-amount" type="number" min="0" placeholder="0" style="color:${accentColor}"/>
+          </div>
+          <div>
+            <label class="modal-label">תאריך *</label>
+            <input class="modal-input" id="m-date" type="date" value="${today}"/>
+          </div>
+        </div>
+        ${tenantBanks.length>0 ? `<div style="margin-bottom:4px">
+          <label class="modal-label">חשבון בנק *</label>
+          <select class="modal-input" id="m-bank" style="cursor:pointer">
+            <option value="">בחרו חשבון...</option>
+            ${tenantBanks.map(b=>`<option value="${b.id}">${bankDisplayName(b)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+        <div class="recurring-toggle" id="recurring-toggle">
+          <div class="chk-box${modalRecurring?' checked':''}" id="chk-recurring">${modalRecurring?'✓':''}</div>
+          <span class="chk-label">תנועה חוזרת חודשית</span>
+        </div>
+        ${modalRecurring?`<div class="months-row">
+          <span style="color:rgba(255,255,255,.45);font-size:13px">מספר חודשים:</span>
+          <input class="months-input" id="m-months" type="number" value="12" min="2" max="120"/>
+        </div>`:''}
+        <div id="modal-error" style="display:none" class="error-msg"></div>
+        <div class="modal-actions">
+          <button class="btn-modal-cancel" id="modal-cancel">ביטול</button>
+          <button class="btn-modal-confirm" id="modal-confirm" style="background:${accentColor};color:#07112B;box-shadow:0 0 24px ${accentColor}44">
+            אישור ${isIncome?'✓ הכנסה':'✓ הוצאה'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── CONFIRM MODAL ───────────────────────────────────
+function renderConfirmModal() {
+  if(confirmModal.type==='delete') {
+    return `<div class="overlay" id="confirm-overlay">
+      <div class="modal glass anim-fade" style="max-width:380px">
+        <div class="modal-body" style="gap:10px">
+          <div style="text-align:center;font-size:36px">🗑️</div>
+          <div style="text-align:center;font-weight:700;font-size:17px">מחיקת תנועה</div>
+          <div style="text-align:center;color:rgba(255,255,255,.55);font-size:14px;line-height:1.6">
+            האם אתה בטוח שברצונך למחוק את התנועה<br/>
+            <strong style="color:#fff">"${confirmModal.name}"</strong>?<br/>
+            <span style="font-size:12px;color:rgba(255,255,255,.3)">פעולה זו אינה ניתנת לביטול</span>
+          </div>
+          <div class="modal-actions" style="margin-top:8px">
+            <button class="btn-modal-cancel" id="confirm-cancel">ביטול</button>
+            <button class="btn-modal-confirm" id="confirm-ok" style="background:var(--red);color:#fff;box-shadow:0 0 20px rgba(239,68,68,.35)">כן, מחק</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  // type === 'complete'
+  const isIncome = confirmModal.txType==='income';
+  const sign = isIncome ? '+' : '−';
+  const color = isIncome ? 'var(--green)' : 'var(--orange)';
+  const newBal = isIncome ? balance + parseFloat(confirmModal.amount) : balance - parseFloat(confirmModal.amount);
+  return `<div class="overlay" id="confirm-overlay">
+    <div class="modal glass anim-fade" style="max-width:400px">
+      <div class="modal-body" style="gap:10px">
+        <div style="text-align:center;font-size:36px">✅</div>
+        <div style="text-align:center;font-weight:700;font-size:17px">סימון כבוצע</div>
+        <div style="text-align:center;color:rgba(255,255,255,.55);font-size:14px;line-height:1.8">
+          <strong style="color:#fff">"${confirmModal.name}"</strong><br/>
+          <span style="color:${color};font-weight:700;font-size:16px">${sign}${fmt(confirmModal.amount)}</span>
+        </div>
+        <div style="text-align:center;color:rgba(255,255,255,.7);font-size:14px;margin-top:4px">
+          האם ברצונך לעדכן את יתרת הבנק?
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:10px 14px;font-size:13px;color:rgba(255,255,255,.45);text-align:center">
+          יתרה חדשה: <strong style="color:#fff">${fmt(newBal)}</strong>
+        </div>
+        <div class="modal-actions" style="margin-top:4px">
+          <button class="btn-modal-cancel" id="confirm-no">לא</button>
+          <button class="btn-modal-confirm" id="confirm-yes" style="background:var(--teal);color:#07112B">כן, עדכן יתרה</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── NOTIFICATION ────────────────────────────────────
+function showNotif(oldZeroDate, newZeroDate) {
+  const existing = document.getElementById('notif');
+  if(existing) existing.remove();
+  if(notifTimer) clearTimeout(notifTimer);
+
+  let type, title, sub;
+  if(!oldZeroDate&&!newZeroDate){type='teal';title='התנועה נוספה בהצלחה ✓';sub='אין שינוי בתאריך הכניסה למינוס';}
+  else if(!oldZeroDate&&newZeroDate){type='orange';title='⚠️ תאריך כניסה למינוס חדש!';sub=`נוסף תאריך: ${fmtDate(newZeroDate)}`;}
+  else if(oldZeroDate&&!newZeroDate){type='green';title='🎉 אין יותר צפי למינוס!';sub='כל התנועות העתידיות מאוזנות';}
+  else {
+    const diff = daysBetween(oldZeroDate, newZeroDate);
+    if(diff<0){type='red';title='▲ תאריך המינוס התקרב!';sub=`${Math.abs(diff)} ימים קרוב יותר — ${fmtDate(newZeroDate)}`;}
+    else if(diff>0){type='green';title='● תאריך המינוס התרחק';sub=`${diff} ימים יותר רחוק — ${fmtDate(newZeroDate)}`;}
+    else{type='teal';title='התנועה נוספה ✓';sub='אין שינוי בתאריך';}
+  }
+
+  const colors={teal:'rgba(0,174,204,.2)',green:'rgba(16,185,129,.2)',orange:'rgba(249,115,22,.2)',red:'rgba(239,68,68,.2)'};
+  const borders={teal:'rgba(0,174,204,.5)',green:'rgba(16,185,129,.5)',orange:'rgba(249,115,22,.5)',red:'rgba(239,68,68,.5)'};
+  const el = document.createElement('div');
+  el.id='notif'; el.className='anim-up';
+  el.style.cssText=`position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:60;min-width:300px;max-width:460px;border-radius:18px;padding:18px 24px;text-align:center;backdrop-filter:blur(20px);background:${colors[type]};border:1px solid ${borders[type]};box-shadow:0 8px 40px ${colors[type]};cursor:pointer`;
+  el.innerHTML=`<div style="font-weight:700;font-size:16px;margin-bottom:4px">${title}</div><div style="color:rgba(255,255,255,.55);font-size:13px">${sub}</div><div style="margin-top:12px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden"><div style="height:3px;border-radius:2px;background:${borders[type]};animation:shrink 5s linear forwards"></div></div>`;
+  el.addEventListener('click',()=>el.remove());
+  document.body.appendChild(el);
+  notifTimer = setTimeout(()=>el.remove(), 5100);
+}
+
+// ─── BIND DASHBOARD ──────────────────────────────────
+function bindDashboard(future, completed, zeroDate) {
+  // Header
+  document.getElementById('btn-logout').addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
+  document.getElementById('btn-settings')?.addEventListener('click',()=>{settingsOpen=true;render();});
+  document.getElementById('btn-add-bank')?.addEventListener('click',()=>{
+    openBankModal();
+  });
+  // Click on bank card → edit bank
+  document.querySelectorAll('.bank-card[data-bank-id]').forEach(el=>el.addEventListener('click',()=>{
+    const bid=el.dataset.bankId;
+    const bank=tenantBanks.find(b=>b.id===bid);
+    if(bank) openBankEditModal(bank);
+  }));
+  bindThemeToggle();
+
+  // Accountant back button
+  document.getElementById('btn-back-acct')?.addEventListener('click',()=>{
+    currentTenant=null;
+    userRole='accountant';
+    render();
+  });
+
+  // Trial upgrade button
+  document.getElementById('btn-trial-upgrade')?.addEventListener('click',()=>{
+    currentTenant=null; userRole=null; render();
+  });
+
+  document.getElementById('btn-open-add').addEventListener('click',()=>{ modalOpen=true; render(); });
+
+  // Balance card
+  document.getElementById('bal-card')?.addEventListener('click',()=>{ editingBalance=true; render(); setTimeout(()=>document.getElementById('bal-input')?.focus(),50); });
+  document.getElementById('btn-save-bal')?.addEventListener('click', saveBalance);
+  document.getElementById('btn-cancel-bal')?.addEventListener('click',()=>{ editingBalance=false; render(); });
+  document.getElementById('bal-input')?.addEventListener('keydown',e=>{ if(e.key==='Enter') saveBalance(); if(e.key==='Escape'){editingBalance=false;render();} });
+
+  // Search — partial re-render (tables only, no header/hero flicker)
+  const si = document.getElementById('search-input');
+  if(si){
+    si.addEventListener('input', e=>{
+      searchQuery = e.target.value;
+      document.getElementById('search-clear').style.visibility = searchQuery ? 'visible' : 'hidden';
+      refreshTables();
+      const ni = document.getElementById('search-input');
+      if(ni){ ni.focus(); try{ni.setSelectionRange(e.target.selectionStart,e.target.selectionStart);}catch(x){} }
+    });
+  }
+  document.getElementById('search-clear')?.addEventListener('click',()=>{
+    searchQuery='';
+    const si2=document.getElementById('search-input');
+    if(si2) si2.value='';
+    document.getElementById('search-clear').style.visibility='hidden';
+    refreshTables();
+    si2?.focus();
+  });
+
+    bindTables();
+
+  // Modal
+  if(modalOpen) bindModal(zeroDate);
+
+  // Confirm modal
+  bindConfirmModal();
+
+  // Settings panel
+  if(settingsOpen) bindSettings();
+}
+
+async function saveBalance() {
+  const val = parseFloat(document.getElementById('bal-input')?.value);
+  if(isNaN(val)) return;
+  await dbAdmin.from('settings').update({current_balance:val}).eq('tenant_id',currentTenant.id);
+  balance=val; editingBalance=false; render();
+}
+
+function bindEditCard() {
+  document.getElementById('ed-save')?.addEventListener('click', async()=>{
+    const id = document.getElementById('ed-save').dataset.id;
+    const typeToggle = document.getElementById('ed-type-toggle');
+    const type = typeToggle.dataset.type;
+    const updateData = {
+      description: document.getElementById('ed-desc').value,
+      vendor: document.getElementById('ed-vendor').value,
+      amount: parseFloat(document.getElementById('ed-amount').value),
+      date: document.getElementById('ed-date').value,
+      type
+    };
+    const edBank = document.getElementById('ed-bank')?.value;
+    if(edBank !== undefined) updateData.bank_id = edBank || null;
+    await dbAdmin.from('transactions').update(updateData).eq('id', id);
+    selectedTxId=null; await loadData(); render();
+  });
+  document.getElementById('ed-cancel')?.addEventListener('click',()=>{ selectedTxId=null; render(); });
+  document.getElementById('ed-type-toggle')?.addEventListener('click', function(){
+    const cur = this.dataset.type;
+    const next = cur==='income'?'expense':'income';
+    this.dataset.type=next;
+    this.textContent=(next==='income'?'💚 הכנסה':'🔴 הוצאה')+' — לחץ להחלפה';
+    this.style.color=next==='income'?'var(--green)':'var(--orange)';
+    this.style.borderColor=next==='income'?'var(--green)':'var(--orange)';
+  });
+}
+
+function refreshTables() {
+  const future = futureWithBalance(transactions, balance);
+  const completed = transactions.filter(t=>t.is_completed).sort((a,b)=>b.completed_at?.localeCompare(a.completed_at||'')||0);
+  const fFuture = searchQuery ? future.filter(t=>matchesSearch(t,searchQuery)) : future;
+  const fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : completed;
+  const ts = document.getElementById('tables-section');
+  if(ts){
+    ts.innerHTML = renderFutureTable(fFuture) + (fCompleted.length ? renderCompletedTable(fCompleted) : '');
+    bindTables();
+  }
+}
+
+function bindTables() {
+  document.querySelectorAll('.tx-row[data-id]').forEach(row=>{
+    row.addEventListener('click', e=>{
+      if(e.target.closest('.check-btn,.del-btn,.edit-input,.btn-save-sm,.btn-cancel-sm,.type-toggle-btn')) return;
+      const id = row.dataset.id;
+      selectedTxId = selectedTxId===id ? null : id;
+      render();
+    });
+  });
+  document.querySelectorAll('.complete-btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      const tx = transactions.find(t=>t.id===btn.dataset.id);
+      if(!tx) return;
+      confirmModal = { type:'complete', id:tx.id, name:tx.description, amount:tx.amount, txType:tx.type };
+      render();
+    });
+  });
+  document.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      const tx = transactions.find(t=>t.id===btn.dataset.id);
+      if(!tx) return;
+      confirmModal = { type:'delete', id:tx.id, name:tx.description };
+      render();
+    });
+  });
+  bindEditCard();
+}
+
+function bindConfirmModal() {
+  if(!confirmModal) return;
+  document.getElementById('confirm-overlay')?.addEventListener('click', e=>{
+    if(e.target.id==='confirm-overlay'){ confirmModal=null; render(); }
+  });
+  if(confirmModal.type==='delete'){
+    document.getElementById('confirm-cancel')?.addEventListener('click',()=>{ confirmModal=null; render(); });
+    document.getElementById('confirm-ok')?.addEventListener('click', async()=>{
+      const id=confirmModal.id; confirmModal=null;
+      await dbAdmin.from('transactions').delete().eq('id',id);
+      await loadData(); render();
+    });
+  } else {
+    document.getElementById('confirm-no')?.addEventListener('click', async()=>{
+      const id=confirmModal.id; confirmModal=null;
+      await dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id);
+      await loadData(); render();
+    });
+    document.getElementById('confirm-yes')?.addEventListener('click', async()=>{
+      const {id,amount,txType}=confirmModal; confirmModal=null;
+      const newBal = txType==='income' ? balance+parseFloat(amount) : balance-parseFloat(amount);
+      await Promise.all([
+        dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id),
+        dbAdmin.from('settings').update({current_balance:newBal}).eq('tenant_id',currentTenant.id)
+      ]);
+      balance=newBal;
+      await loadData(); render();
+    });
+  }
+}
+
+function bindModal(zeroDate) {
+  document.getElementById('modal-expense')?.addEventListener('click',()=>{
+    if(modalType==='expense') return;
+    modalType='expense';
+    document.getElementById('modal-expense').className='type-btn active-expense';
+    document.getElementById('modal-income').className='type-btn';
+    document.querySelector('.modal').className='modal glass-expense anim-fade';
+    const amt=document.getElementById('m-amount'); if(amt) amt.style.color='var(--orange)';
+    const btn=document.getElementById('modal-confirm');
+    if(btn){btn.style.background='var(--orange)';btn.style.boxShadow='0 0 24px rgba(249,115,22,.27)';btn.textContent='אישור ✓ הוצאה';}
+  });
+  document.getElementById('modal-income')?.addEventListener('click',()=>{
+    if(modalType==='income') return;
+    modalType='income';
+    document.getElementById('modal-income').className='type-btn active-income';
+    document.getElementById('modal-expense').className='type-btn';
+    document.querySelector('.modal').className='modal glass-income anim-fade';
+    const amt=document.getElementById('m-amount'); if(amt) amt.style.color='var(--green)';
+    const btn=document.getElementById('modal-confirm');
+    if(btn){btn.style.background='var(--green)';btn.style.boxShadow='0 0 24px rgba(16,185,129,.27)';btn.textContent='אישור ✓ הכנסה';}
+  });
+  document.getElementById('modal-overlay')?.addEventListener('click',e=>{ if(e.target.id==='modal-overlay'){modalOpen=false;render();} });
+  document.getElementById('modal-cancel')?.addEventListener('click',()=>{ modalOpen=false; render(); });
+  document.getElementById('recurring-toggle')?.addEventListener('click',()=>{
+    modalRecurring = !modalRecurring;
+    const chk = document.getElementById('chk-recurring');
+    if(chk){ chk.classList.toggle('checked', modalRecurring); chk.textContent = modalRecurring ? '✓' : ''; }
+    const existing = document.querySelector('.months-row');
+    if(modalRecurring && !existing){
+      const row = document.createElement('div');
+      row.className = 'months-row';
+      row.innerHTML = `<span style="color:rgba(255,255,255,.45);font-size:13px">מספר חודשים:</span><input class="months-input" id="m-months" type="number" value="12" min="2" max="120"/>`;
+      document.getElementById('recurring-toggle').insertAdjacentElement('afterend', row);
+    } else if(!modalRecurring && existing){ existing.remove(); }
+  });
+
+  document.getElementById('modal-confirm')?.addEventListener('click', async()=>{
+    const desc = document.getElementById('m-desc').value.trim();
+    const amount = parseFloat(document.getElementById('m-amount').value);
+    const date = document.getElementById('m-date').value;
+    const vendor = document.getElementById('m-vendor').value.trim();
+    const months = modalRecurring ? (parseInt(document.getElementById('m-months')?.value)||12) : 1;
+    const errEl = document.getElementById('modal-error');
+
+    if(!desc||!amount||!date||amount<=0){errEl.textContent='אנא מלא תיאור, סכום ותאריך';errEl.style.display='block';return;}
+    if(tenantBanks.length>0){
+      const bk=document.getElementById('m-bank')?.value;
+      if(!bk){errEl.textContent='אנא בחרו חשבון בנק';errEl.style.display='block';return;}
+    }
+    errEl.style.display='none';
+
+    const oldZeroDate = calcZeroDate(transactions, balance);
+    const bankId = document.getElementById('m-bank')?.value || null;
+    const base = {description:desc, vendor, amount, date, type:modalType, is_recurring:modalRecurring, tenant_id:currentTenant.id, bank_id:bankId||null};
+
+    if(months>1){
+      const {data:first} = await dbAdmin.from('transactions').insert([base]).select().single();
+      const extras = [];
+      for(let i=1;i<months;i++){
+        const d = new Date(date+'T00:00:00');
+        d.setMonth(d.getMonth()+i);
+        extras.push({...base, date:d.toISOString().split('T')[0], parent_transaction_id:first.id});
+      }
+      if(extras.length) await dbAdmin.from('transactions').insert(extras);
+    } else {
+      await dbAdmin.from('transactions').insert([base]);
+    }
+
+    await loadData();
+    const newZeroDate = calcZeroDate(transactions, balance);
+    modalOpen=false; modalRecurring=false; render();
+    showNotif(oldZeroDate, newZeroDate);
+  });
+}
+
+
+// ─── MULTI-BANK CARDS (PRO) ─────────────────────
+function renderMultiBankCards() {
+  const totalBalance = tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0);
+  const allZero = calcZeroDate(transactions, totalBalance);
+  return `
+    <div class="balance-section">
+      <div class="combined-balance glass">
+        <div class="cb-label">💰 יתרה מאוחדת</div>
+        <div class="cb-value" style="color:${totalBalance<0?'var(--red)':'var(--text)'}">${fmt(totalBalance)}</div>
+        ${allZero?`<div class="cb-zero" style="color:var(--red)">📉 כניסה למינוס: ${fmtDate(allZero)} (בעוד ${daysFromNow(allZero)} ימים)</div>`
+                 :`<div class="cb-zero" style="color:var(--green)">✓ אין צפי למינוס</div>`}
+      </div>
+      <div class="banks-grid">
+        ${tenantBanks.map(b=>{
+          const bTxs = transactions.filter(t=>t.bank_id===b.id);
+          const bBal = parseFloat(b.balance||0);
+          const bZero = calcZeroDate(bTxs, bBal);
+          const bSub = bankSubtitle(b);
+          return `<div class="bank-card glass" data-bank-id="${b.id}" style="cursor:pointer">
+            <div class="bk-name">${bankDisplayName(b)}</div>
+            ${bSub?`<div class="bk-sub">${bSub}</div>`:''}
+            <div class="bk-balance" style="color:${bBal<0?'var(--red)':'var(--teal)'}">${fmt(bBal)}</div>
+            ${bZero?`<div class="bk-zero" style="color:var(--red)">מינוס: ${fmtDate(bZero)}</div>`:`<div class="bk-zero" style="color:var(--green)">תקין ✓</div>`}
+          </div>`;
+        }).join('')}
+        ${tenantBanks.length===0?`<div class="bank-card glass" style="border-style:dashed;opacity:.6;text-align:center;padding:24px">
+            <div style="font-size:24px;margin-bottom:8px">🏦</div>
+            <div style="font-size:13px;color:var(--text-mid)">הוסיפו את חשבונות הבנק שלכם</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:4px">עד 5 חשבונות</div>
+          </div>`:''}
+        ${tenantBanks.length<5?`<button class="btn-add-bank" id="btn-add-bank">+ הוספת בנק</button>`:''}
+      </div>
+    </div>`;
+}
+
+// ─── BANK MODAL (PRO) ─────────────────────────────
+let bankModalOpen=false;
+
+function openBankEditModal(bank){
+  const info=parseBankInfo(bank);
+  const overlay=document.createElement('div');
+  overlay.id='bank-modal-overlay';
+  overlay.className='overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(4,11,30,.82);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML=`
+    <div class="bank-modal anim-fade">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="margin:0;font-size:18px">🏦 עריכת חשבון בנק</h3>
+        <button id="bank-modal-close" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <label class="modal-label" style="margin-top:8px">יתרה נוכחית (₪)</label>
+      <input class="modal-input" id="bm-balance" type="number" value="${info.balance}" style="font-size:28px;font-weight:700;text-align:center;padding:18px;color:var(--teal);border:2px solid rgba(0,174,204,.3)"/>
+      <label class="modal-label">כינוי החשבון *</label>
+      <input class="modal-input" id="bm-name" value="${info.name}"/>
+      <label class="modal-label">בנק *</label>
+      <select class="modal-input" id="bm-bank">
+        <option value="">בחרו בנק...</option>
+        ${['הפועלים','לאומי','דיסקונט','מזרחי טפחות','הבינלאומי','מרכנתיל','איגוד','יהב','ירושלים','מסד','פאגי','אחר'].map(b=>'<option value="'+b+'"'+(info.bank===b?' selected':'')+'>'+b+'</option>').join('')}
+      </select>
+      <div class="modal-row">
+        <div>
+          <label class="modal-label">מספר סניף</label>
+          <input class="modal-input" id="bm-branch" value="${info.branch}" maxlength="5"/>
+        </div>
+        <div>
+          <label class="modal-label">מספר חשבון</label>
+          <input class="modal-input" id="bm-account" value="${info.account}" maxlength="10"/>
+        </div>
+      </div>
+      <div id="bm-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;border-radius:12px;padding:10px 14px;font-size:13px;text-align:center;margin-top:12px"></div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button id="bank-modal-delete" style="padding:14px 18px;border-radius:12px;border:1px solid rgba(239,68,68,.3);background:transparent;color:var(--red);cursor:pointer;font-size:14px">🗑️ מחיקה</button>
+        <div style="flex:1"></div>
+        <button id="bank-modal-cancel" style="padding:14px 18px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:14px">ביטול</button>
+        <button id="bank-modal-save" style="padding:14px 24px;border-radius:12px;border:none;background:var(--teal);color:#07112B;font-weight:700;cursor:pointer;font-size:14px">שמירה</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  // Bind edit modal
+  const close=()=>{ overlay.remove(); };
+  document.getElementById('bank-modal-close')?.addEventListener('click',close);
+  document.getElementById('bank-modal-cancel')?.addEventListener('click',close);
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
+  document.getElementById('bank-modal-save')?.addEventListener('click',async()=>{
+    const name=document.getElementById('bm-name').value.trim();
+    const bk=document.getElementById('bm-bank').value;
+    const branch=document.getElementById('bm-branch').value.trim();
+    const account=document.getElementById('bm-account').value.trim();
+    const bal=parseFloat(document.getElementById('bm-balance').value)||0;
+    const errEl=document.getElementById('bm-error');
+    if(!name||!bk){errEl.textContent='אנא מלאו כינוי ובנק';errEl.style.display='block';return;}
+    const bankData=JSON.stringify({name,bank:bk,branch,account});
+    const btn=document.getElementById('bank-modal-save');
+    btn.disabled=true; btn.textContent='שומר...';
+    try{
+      await dbAdmin.from('tenant_banks').update({bank_name:bankData,balance:bal}).eq('id',bank.id);
+      const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
+      tenantBanks=banks||[];
+      close(); render();
+    }catch(err){errEl.textContent='שגיאה: '+(err.message||err);errEl.style.display='block';btn.disabled=false;btn.textContent='שמירה';}
+  });
+  document.getElementById('bank-modal-delete')?.addEventListener('click',async()=>{
+    if(!confirm('למחוק את חשבון הבנק? תנועות משויכות לא יימחקו.')) return;
+    await dbAdmin.from('tenant_banks').delete().eq('id',bank.id);
+    const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
+    tenantBanks=banks||[];
+    close(); render();
+  });
+}
+
+function openBankModal(){
+  bankModalOpen=true;
+  const overlay=document.createElement('div');
+  overlay.id='bank-modal-overlay';
+  overlay.className='overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(4,11,30,.82);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML=`
+    <div class="bank-modal anim-fade">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 style="margin:0;font-size:18px">🏦 הוספת חשבון בנק</h3>
+        <button id="bank-modal-close" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <label class="modal-label">כינוי החשבון *</label>
+      <input class="modal-input" id="bm-name" placeholder="למשל: חשבון עסקי ראשי"/>
+      <label class="modal-label">בנק *</label>
+      <select class="modal-input" id="bm-bank">
+        <option value="">בחרו בנק...</option>
+        <option value="הפועלים">בנק הפועלים</option>
+        <option value="לאומי">בנק לאומי</option>
+        <option value="דיסקונט">בנק דיסקונט</option>
+        <option value="מזרחי טפחות">מזרחי טפחות</option>
+        <option value="הבינלאומי">הבינלאומי (FIBI)</option>
+        <option value="מרכנתיל">מרכנתיל</option>
+        <option value="איגוד">בנק איגוד</option>
+        <option value="יהב">בנק יהב</option>
+        <option value="ירושלים">בנק ירושלים</option>
+        <option value="מסד">בנק מסד</option>
+        <option value="פאגי">בנק פאגי</option>
+        <option value="אחר">אחר</option>
+      </select>
+      <div class="modal-row">
+        <div>
+          <label class="modal-label">מספר סניף</label>
+          <input class="modal-input" id="bm-branch" placeholder="למשל: 123" maxlength="5"/>
+        </div>
+        <div>
+          <label class="modal-label">מספר חשבון</label>
+          <input class="modal-input" id="bm-account" placeholder="למשל: 456789" maxlength="10"/>
+        </div>
+      </div>
+      <label class="modal-label">יתרה נוכחית (₪)</label>
+      <input class="modal-input" id="bm-balance" type="number" placeholder="0" value="0"/>
+      <div id="bm-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;border-radius:12px;padding:10px 14px;font-size:13px;text-align:center;margin-top:12px"></div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button id="bank-modal-cancel" style="flex:1;padding:14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:14px">ביטול</button>
+        <button id="bank-modal-save" style="flex:1;padding:14px;border-radius:12px;border:none;background:var(--teal);color:#07112B;font-weight:700;cursor:pointer;font-size:14px">הוספה</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  bindBankModal();
+}
+
+function bindBankModal(){
+  const close=()=>{ document.getElementById('bank-modal-overlay')?.remove(); bankModalOpen=false; };
+  document.getElementById('bank-modal-close')?.addEventListener('click',close);
+  document.getElementById('bank-modal-cancel')?.addEventListener('click',close);
+  document.getElementById('bank-modal-overlay')?.addEventListener('click',e=>{ if(e.target.id==='bank-modal-overlay') close(); });
+  document.getElementById('bank-modal-save')?.addEventListener('click',async()=>{
+    const name=document.getElementById('bm-name').value.trim();
+    const bank=document.getElementById('bm-bank').value;
+    const branch=document.getElementById('bm-branch').value.trim();
+    const account=document.getElementById('bm-account').value.trim();
+    const bal=parseFloat(document.getElementById('bm-balance').value)||0;
+    const errEl=document.getElementById('bm-error');
+    if(!name||!bank){errEl.textContent='אנא מלאו כינוי ובנק';errEl.style.display='block';return;}
+    errEl.style.display='none';
+    const bankData=JSON.stringify({name,bank,branch,account});
+    const btn=document.getElementById('bank-modal-save');
+    btn.disabled=true; btn.textContent='שומר...';
+    try{
+      await dbAdmin.from('tenant_banks').insert([{tenant_id:currentTenant.id,bank_name:bankData,balance:bal,display_order:tenantBanks.length}]);
+      const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
+      tenantBanks=banks||[];
+      close();
+      render();
+    }catch(err){errEl.textContent='שגיאה: '+(err.message||err);errEl.style.display='block';btn.disabled=false;btn.textContent='הוספה';}
+  });
+}
+
+// ─── ONBOARDING ──────────────────────────────────
+function renderOnboarding() {
+  const starterM=12, starterY=120, proM=36, proY=360;
+  const pM = onboardPlan==='starter'?starterM:proM;
+  const pY = onboardPlan==='starter'?starterY:proY;
+  const price = onboardCycle==='monthly'?pM:pY;
+  const vat = Math.round(price*0.17);
+  return `<div class="onboard-page"><div class="onboard-card glass anim-fade">
+    <div class="login-logo"><img src="white-logo.png" alt="Tactigo"/></div>
+    <div class="login-title">ברוכים הבאים לתזרים!</div>
+    <div class="login-sub">בחרו את המסלול המתאים לכם</div>
+    <div class="cycle-toggle">
+      <button class="cycle-btn ${onboardCycle==='monthly'?'active':''}" data-cycle="monthly">חודשי</button>
+      <button class="cycle-btn ${onboardCycle==='yearly'?'active':''}" data-cycle="yearly">שנתי (חסכו ${onboardPlan==='starter'?'24':'72'} ₪)</button>
+    </div>
+    <div class="plan-grid">
+      <div class="plan-box glass ${onboardPlan==='starter'?'selected':''}" data-plan="starter">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price">${onboardCycle==='monthly'?starterM+' ₪':starterY+' ₪'}<small>/${onboardCycle==='monthly'?'חודש':'שנה'} + מע"מ</small></div>
+        <ul class="plan-feat"><li>יתרת בנק אחת</li><li>תנועות ללא הגבלה</li><li>שיתוף עד 2 משתמשים</li><li>לינק כניסה / Google</li></ul>
+      </div>
+      <div class="plan-box glass ${onboardPlan==='pro'?'selected':''}" data-plan="pro">
+        <div class="plan-name">PRO</div>
+        <div class="plan-price">${onboardCycle==='monthly'?proM+' ₪':proY+' ₪'}<small>/${onboardCycle==='monthly'?'חודש':'שנה'} + מע"מ</small></div>
+        <ul class="plan-feat"><li>עד 5 חשבונות בנק</li><li>יתרה מאוחדת</li><li>שיתוף עד 6 משתמשים</li><li>תמיכה מועדפת</li></ul>
+      </div>
+    </div>
+    <button class="btn-checkout" id="btn-checkout">המשך לתשלום — ${price+vat} ₪ (כולל מע"מ)</button>
+    <button class="btn-secondary" id="btn-start-trial" style="margin-top:10px;border-color:rgba(0,174,204,.3);color:var(--teal)">🎁 התחילו ניסיון חינם ל-7 ימים</button>
+    <button class="btn-secondary" id="btn-accountant-register" style="margin-top:10px;border-color:rgba(16,185,129,.3);color:var(--green)">📋 כניסה כמנהל/ת חשבונות</button>
+    <button class="btn-secondary" id="btn-onboard-logout" style="margin-top:10px">התנתק</button>
+  </div></div>`;
+}
+
+function bindOnboarding() {
+  document.querySelectorAll('.plan-box').forEach(el=>el.addEventListener('click',()=>{
+    onboardPlan=el.dataset.plan; render();
+  }));
+  document.querySelectorAll('.cycle-btn').forEach(el=>el.addEventListener('click',()=>{
+    onboardCycle=el.dataset.cycle; render();
+  }));
+  document.getElementById('btn-checkout')?.addEventListener('click',()=>{
+    const url = onboardPlan==='pro'
+      ? 'https://pay.sumit.co.il/omkr5y/vas2cv/vas2cw/payment/'
+      : 'https://pay.sumit.co.il/omkr5y/vas26i/vas26j/payment/';
+    // Store pending registration
+    localStorage.setItem('tazrim_pending', JSON.stringify({
+      email: session.user.email,
+      plan: onboardPlan,
+      cycle: onboardCycle
+    }));
+    window.open(url, '_blank');
+    // Show "after payment" message
+    setTimeout(()=>{
+      if(confirm('השלמת את התשלום? לחץ אישור כדי להפעיל את החשבון')) {
+        activateAccount();
+      }
+    }, 3000);
+  });
+  const trialBtn = document.getElementById('btn-start-trial');
+  if(trialBtn) {
+    trialBtn.addEventListener('click', async function(){
+      // Immediate visual feedback
+      this.disabled = true;
+      this.textContent = '⏳ יוצר חשבון ניסיון...';
+      this.style.opacity = '0.6';
+      try {
+        if(!session || !session.user || !session.user.email){
+          alert('שגיאה: אין סשן פעיל. נסו להתחבר מחדש.');
+          window.location.href='login.html'; return;
+        }
+        const email = session.user.email;
+        console.log('[TRIAL] Starting for:', email);
+        const now = new Date();
+        const expires = new Date(now);
+        expires.setDate(expires.getDate()+7);
+
+        // Step 1: Create tenant
+        console.log('[TRIAL] Step 1: Creating tenant...');
+        const {data:tenant,error:tErr} = await dbAdmin.from('tenants').insert([{
+          owner_email:email, plan:'starter', billing_cycle:'monthly',
+          plan_expires_at:expires.toISOString(), is_active:true
+        }]).select().single();
+        if(tErr){ console.error('[TRIAL] tenant error:', tErr); alert('שגיאה ביצירת חשבון: '+(tErr.message||JSON.stringify(tErr))); this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1'; return; }
+        if(!tenant || !tenant.id){ alert('שגיאה: החשבון נוצר אבל לא התקבל מזהה'); this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1'; return; }
+        console.log('[TRIAL] Step 1 done, tenant:', tenant.id);
+
+        // Step 2: Add user
+        console.log('[TRIAL] Step 2: Adding tenant_user...');
+        const {error:uErr} = await dbAdmin.from('tenant_users').insert([{tenant_id:tenant.id, email, role:'owner', accepted_at:now.toISOString()}]);
+        if(uErr) console.error('[TRIAL] tenant_user error:', uErr);
+        console.log('[TRIAL] Step 2 done');
+
+        // Step 3: Create settings
+        console.log('[TRIAL] Step 3: Creating settings...');
+        const {error:sErr} = await dbAdmin.from('settings').insert([{tenant_id:tenant.id, current_balance:0}]);
+        if(sErr) console.error('[TRIAL] settings error:', sErr);
+        console.log('[TRIAL] Step 3 done');
+
+        // Step 4: Send welcome email (non-blocking)
+        console.log('[TRIAL] Step 4: Sending email...');
+        try{
+          await fetch('https://api.resend.com/emails',{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+RESEND_KEY,'Content-Type':'application/json'},
+            body:JSON.stringify({from:'תזרים <noreply@tactigo.co.il>',to:[email],subject:'ברוכים הבאים לתזרים — ניסיון חינם!',
+              html:welcomeEmailHTML(email,'trial')})
+          });
+          await dbAdmin.from('email_log').insert([{tenant_id:tenant.id,to_email:email,template:'welcome_trial'}]);
+        }catch(emailErr){console.error('[TRIAL] email error:', emailErr);}
+        console.log('[TRIAL] Step 4 done');
+
+        // Step 5: Reload context and render
+        console.log('[TRIAL] Step 5: Loading tenant context...');
+        await loadTenantContext();
+        if(currentTenant && currentTenant.is_active) await loadData();
+        console.log('[TRIAL] All done! Rendering dashboard...');
+        render();
+      } catch(err) {
+        console.error('[TRIAL] UNEXPECTED ERROR:', err);
+        alert('שגיאה לא צפויה: ' + (err.message||err));
+        this.disabled = false;
+        this.textContent = '🎁 התחילו ניסיון חינם ל-7 ימים';
+        this.style.opacity = '1';
+      }
+    });
+  } else { console.error('[TRIAL] btn-start-trial NOT FOUND in DOM!'); }
+  document.getElementById('btn-accountant-register')?.addEventListener('click',()=>{
+    localStorage.setItem('tazrim_user_role','accountant');
+    userRole='accountant'; currentTenant=null; render();
+  });
+  document.getElementById('btn-onboard-logout')?.addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
+}
+
+async function activateAccount() {
+  const pending = JSON.parse(localStorage.getItem('tazrim_pending')||'{}');
+  if(!pending.email) return;
+  const plan = pending.plan||'starter';
+  const cycle = pending.cycle||'monthly';
+  const now = new Date();
+  const expires = new Date(now);
+  if(cycle==='yearly') expires.setFullYear(expires.getFullYear()+1);
+  else expires.setMonth(expires.getMonth()+1);
+
+  // Create tenant
+  const {data:tenant,error:tErr} = await dbAdmin.from('tenants').insert([{
+    owner_email: pending.email,
+    plan, billing_cycle: cycle,
+    plan_expires_at: expires.toISOString(),
+    is_active: true
+  }]).select().single();
+
+  if(tErr){console.error('tenant create error',tErr);alert('שגיאה ביצירת חשבון');return;}
+
+  // Add owner as tenant user
+  await dbAdmin.from('tenant_users').insert([{
+    tenant_id: tenant.id, email: pending.email, role:'owner', accepted_at: now.toISOString()
+  }]);
+
+  // Create default settings for this tenant
+  await dbAdmin.from('settings').insert([{tenant_id: tenant.id, current_balance:0}]);
+
+  // Log payment
+  const prices = {starter:{monthly:12,yearly:120},pro:{monthly:36,yearly:360}};
+  await dbAdmin.from('payments').insert([{
+    tenant_id: tenant.id,
+    amount: prices[plan][cycle],
+    plan, billing_cycle: cycle,
+    status:'completed',
+    period_start: now.toISOString().split('T')[0],
+    period_end: expires.toISOString().split('T')[0]
+  }]);
+
+  // Send welcome email via Resend
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+RESEND_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        from:'תזרים <noreply@tactigo.co.il>',
+        to:[pending.email],
+        subject:'ברוכים הבאים לתזרים!',
+        html: welcomeEmailHTML(pending.email, plan)
+      })
+    });
+    // Log email
+    await dbAdmin.from('email_log').insert([{tenant_id:tenant.id,to_email:pending.email,template:'welcome'}]);
+  } catch(e){console.error('email error',e);}
+
+  localStorage.removeItem('tazrim_pending');
+  await loadTenantContext();
+  await loadData();
+  render();
+}
+
+function welcomeEmailHTML(email, plan) {
+  return `<div style="direction:rtl;font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#07112B;color:#fff;border-radius:16px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#0D1B4B,#07112B);padding:40px 30px;text-align:center">
+      <h1 style="color:#00AECC;margin:0 0 10px">ברוכים הבאים לתזרים!</h1>
+      <p style="color:rgba(255,255,255,.6);margin:0">החשבון שלך הופעל בהצלחה</p>
+    </div>
+    <div style="padding:30px">
+      <p>שלום,</p>
+      <p>${plan==='trial'?'הניסיון החינמי שלך ל-7 ימים הופעל בהצלחה!':'המנוי שלך למסלול <strong style="color:#00AECC">'+(plan==='pro'?'PRO':'Starter')+'</strong> הופעל בהצלחה.'}</p>
+      <p>אתה יכול להתחיל להשתמש בתזרים עכשיו — להוסיף יתרת בנק, להגדיר תנועות עתידיות, ולראות מתי צפויה כניסה למינוס.</p>
+      <div style="text-align:center;margin:30px 0">
+        <a href="https://tazrim.tactigo.co.il/login.html" style="background:#00AECC;color:#07112B;font-weight:700;padding:14px 32px;border-radius:12px;text-decoration:none;display:inline-block">כניסה לתזרים</a>
+      </div>
+      <p style="color:rgba(255,255,255,.4);font-size:13px">צוות Tactigo</p>
+    </div>
+  </div>`;
+}
+
+
+// ─── TRIAL BANNER ─────────────────────────────────
+function renderTrialBanner() {
+  if(!currentTenant || !isTrialAccount(currentTenant)) return '';
+  const expires = new Date(currentTenant.plan_expires_at);
+  const now = new Date();
+  const daysLeft = Math.max(0, Math.ceil((expires-now)/(864e5)));
+  return `<div class="trial-banner">
+    <div class="trial-text">⚠️ מסלול ניסיון חינם — נותרו <span class="trial-days">${daysLeft}</span> ימים</div>
+    <button class="btn-upgrade" id="btn-trial-upgrade">שדרגו עכשיו →</button>
+  </div>`;
+}
+
+// ─── EXPIRED ACCOUNT ─────────────────────────────
+function renderExpired() {
+  const isTrial = isTrialAccount(currentTenant);
+  return `<div class="onboard-page"><div class="onboard-card glass anim-fade" style="text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">${isTrial?'🎁':'⏰'}</div>
+    <div class="login-title">${isTrial?'תקופת הניסיון הסתיימה':'תוקף המנוי פג'}</div>
+    <div class="login-sub" style="margin-bottom:20px">${isTrial?'בחרו מסלול כדי להמשיך — כל המידע שלכם נשמר!':'חדש את המנוי כדי להמשיך להשתמש בתזרים'}</div>
+    <button class="btn-checkout" id="btn-renew">${isTrial?'בחירת מסלול':'חידוש מנוי'}</button>
+    <button class="btn-secondary" id="btn-expired-logout" style="margin-top:10px">התנתק</button>
+  </div></div>`;
+}
+
+function bindExpired() {
+  document.getElementById('btn-renew')?.addEventListener('click',()=>{
+    if(isTrialAccount(currentTenant)){
+      currentTenant=null; userRole=null; render(); return;
+    }
+    const url = currentTenant.plan==='pro'
+      ? 'https://pay.sumit.co.il/omkr5y/vas2cv/vas2cw/payment/'
+      : 'https://pay.sumit.co.il/omkr5y/vas26i/vas26j/payment/';
+    window.open(url,'_blank');
+    setTimeout(async()=>{
+      if(confirm('השלמת את התשלום? לחץ אישור כדי להפעיל את החשבון')){
+        const now=new Date(),expires=new Date(now);
+        if(currentTenant.billing_cycle==='yearly') expires.setFullYear(expires.getFullYear()+1);
+        else expires.setMonth(expires.getMonth()+1);
+        await dbAdmin.from('tenants').update({is_active:true,plan_expires_at:expires.toISOString()}).eq('id',currentTenant.id);
+        await loadTenantContext(); render();
+      }
+    },3000);
+  });
+  document.getElementById('btn-expired-logout')?.addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
+}
+
+// ─── ACCOUNTANT DASHBOARD ────────────────────────
+function renderAccountantDash() {
+  return `<div id="header" class="anim-up">
+    <div class="header-actions">
+      <button class="theme-toggle" id="theme-toggle" title="מצב בהיר/כהה">🌙</button>
+      <button class="btn-logout" id="btn-logout">יציאה</button>
+    </div>
+    <div class="header-logo"><img src="white-logo.png" alt="Tactigo"/></div>
+  </div>
+  ${renderTrialBanner()}
+  <div id="main">
+    <h2 style="padding:20px 20px 0;font-size:20px">הלקוחות שלי</h2>
+    <div class="acct-grid" id="acct-grid">
+      <div style="text-align:center;padding:40px;color:var(--text-dim)">טוען...</div>
+    </div>
+  </div>`;
+}
+
+async function bindAccountantDash() {
+  document.getElementById('btn-logout')?.addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
+  bindThemeToggle();
+  // Load accountant's tenants
+  const email = session.user.email;
+  const {data:tuRows} = await dbAdmin.from('tenant_users').select('tenant_id').eq('email',email).eq('role','accountant').eq('is_active',true);
+  if(!tuRows||!tuRows.length){
+    document.getElementById('acct-grid').innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">אין לקוחות משויכים</div>';
+    return;
+  }
+  const tIds = tuRows.map(r=>r.tenant_id);
+  const {data:tenants} = await dbAdmin.from('tenants').select('*').in('id',tIds);
+  const grid = document.getElementById('acct-grid');
+  if(!tenants||!tenants.length){grid.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">אין לקוחות</div>';return;}
+
+  let html='';
+  for(const t of tenants){
+    const {data:sets} = await dbAdmin.from('settings').select('*').eq('tenant_id',t.id).single();
+    const bal = parseFloat(sets?.current_balance||0);
+    const {data:txs} = await dbAdmin.from('transactions').select('*').eq('tenant_id',t.id);
+    const zd = calcZeroDate(txs||[], bal);
+    const expired = t.plan_expires_at && new Date(t.plan_expires_at)<new Date();
+    html+=`<div class="acct-card glass" data-tid="${t.id}" style="${expired?'opacity:.5':''}">
+      <div class="acct-client">${t.company_name||t.owner_email}</div>
+      <div class="acct-balance ${bal<0?'bal-neg':''}">${fmt(bal)}</div>
+      ${zd?`<div class="acct-zero" style="color:var(--red)">כניסה למינוס: ${fmtDate(zd)}</div>`:`<div class="acct-zero" style="color:var(--green)">תקין</div>`}
+      ${expired?'<div style="color:var(--red);font-size:12px;margin-top:6px">⚠ מנוי לא פעיל</div>':''}
+    </div>`;
+  }
+  grid.innerHTML=html;
+
+  // Click to enter tenant
+  grid.querySelectorAll('.acct-card').forEach(el=>el.addEventListener('click',async()=>{
+    const tid=el.dataset.tid;
+    const t=tenants.find(x=>x.id===tid);
+    if(!t||!t.is_active) return;
+    currentTenant=t; userRole='accountant';
+    await loadData(); render();
+  }));
+}
+
+// ─── SETTINGS PANEL ──────────────────────────────
+function renderSettings() {
+  if(!currentTenant) return '';
+  const maxUsers = currentTenant.plan==='pro'?6:2;
+  return `<div class="settings-overlay" id="settings-overlay">
+    <div class="settings-card glass anim-fade">
+      <div class="settings-header">
+        <span style="font-weight:700;font-size:16px">הגדרות חשבון</span>
+        <button class="btn-cancel" id="btn-close-settings">✕</button>
+      </div>
+      <div class="settings-body">
+        <div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">מסלול</div>
+          <div style="font-size:16px;font-weight:700">${isFreeAccount(currentTenant)?'חינמי':isTrialAccount(currentTenant)?'ניסיון חינם (7 ימים)':currentTenant.plan==='pro'?'PRO':'Starter'}${isTrialAccount(currentTenant)||isFreeAccount(currentTenant)?'':' — '+(currentTenant.billing_cycle==='yearly'?'שנתי':'חודשי')}</div>
+          ${currentTenant.plan_expires_at?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">תוקף עד: ${fmtDate(currentTenant.plan_expires_at.split('T')[0])}</div>`:''}
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">משתמשים מורשים (${tenantUsers.length}/${maxUsers})</div>
+          ${tenantUsers.map(u=>`<div class="user-row">
+            <div><div class="user-email">${u.email}</div><div class="user-role">${u.role==='owner'?'בעלים':u.role==='accountant'?'הנהלת חשבונות':'משתמש'}</div></div>
+            ${u.role!=='owner' && userRole==='owner'?`<button class="btn-remove-user" data-uid="${u.id}">הסר</button>`:''}
+          </div>`).join('')}
+          ${tenantUsers.length<maxUsers && userRole==='owner'?`
+          <div class="add-user-row" style="margin-top:10px">
+            <input class="form-input" id="new-user-email" placeholder="אימייל" style="margin:0"/>
+            <select class="form-input" id="new-user-role" style="width:auto;margin:0">
+              <option value="user">משתמש</option>
+              <option value="accountant">הנהלת חשבונות</option>
+            </select>
+            <button class="btn-save" id="btn-add-user">הוסף</button>
+          </div>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bindSettings() {
+  document.getElementById('btn-close-settings')?.addEventListener('click',()=>{settingsOpen=false;render();});
+  document.getElementById('settings-overlay')?.addEventListener('click',(e)=>{
+    if(e.target.id==='settings-overlay'){settingsOpen=false;render();}
+  });
+  document.querySelectorAll('.btn-remove-user').forEach(el=>el.addEventListener('click',async()=>{
+    if(!confirm('להסיר משתמש זה?')) return;
+    await dbAdmin.from('tenant_users').update({is_active:false}).eq('id',el.dataset.uid);
+    await loadTenantUsers(); render();
+  }));
+  document.getElementById('btn-add-user')?.addEventListener('click',async()=>{
+    const email=document.getElementById('new-user-email').value.trim();
+    const role=document.getElementById('new-user-role').value;
+    if(!email) return;
+    const {error}=await dbAdmin.from('tenant_users').insert([{
+      tenant_id:currentTenant.id, email, role, accepted_at:new Date().toISOString()
+    }]);
+    if(error){alert(error.message);return;}
+    await loadTenantUsers(); render();
+  });
+}
+
+async function loadTenantUsers() {
+  if(!currentTenant) return;
+  const {data}=await dbAdmin.from('tenant_users').select('*').eq('tenant_id',currentTenant.id).eq('is_active',true);
+  tenantUsers=data||[];
+}
+
+// ─── THEME TOGGLE ────────────────────────────────
+function bindThemeToggle() {
+  document.getElementById('theme-toggle')?.addEventListener('click',()=>{
+    const html=document.documentElement;
+    const current=html.getAttribute('data-theme');
+    const next=current==='light'?'dark':'light';
+    html.setAttribute('data-theme',next);
+    localStorage.setItem('tazrim_theme',next);
+    const btn=document.getElementById('theme-toggle');
+    if(btn) btn.textContent=next==='light'?'☀️':'🌙';
+  });
+  // Apply saved theme
+  const saved=localStorage.getItem('tazrim_theme');
+  if(saved){
+    document.documentElement.setAttribute('data-theme',saved);
+    const btn=document.getElementById('theme-toggle');
+    if(btn) btn.textContent=saved==='light'?'☀️':'🌙';
+  }
+}
+
+// ─── TENANT CONTEXT LOADER ──────────────────────
+async function loadTenantContext() {
+  if(!session) return;
+  const email = session.user.email;
+  
+  // Check if user has any tenant access
+  const {data:tuRows} = await dbAdmin.from('tenant_users').select('*').eq('email',email).eq('is_active',true);
+  
+  if(!tuRows || tuRows.length===0){
+    // Admin gets auto-tenant (free, no expiration)
+    if(email === ADMIN_EMAIL){
+      const {data:newT} = await dbAdmin.from('tenants').insert([{
+        owner_email: email, company_name:'Tactigo', plan:'pro', billing_cycle:'yearly',
+        plan_expires_at: new Date(2099,11,31).toISOString(), is_active:true
+      }]).select().single();
+      if(newT){
+        await dbAdmin.from('tenant_users').insert([{tenant_id:newT.id, email, role:'owner', accepted_at:new Date().toISOString()}]);
+        await dbAdmin.from('settings').insert([{tenant_id:newT.id, current_balance:0}]);
+        // Re-run to pick up the new tenant
+        return await loadTenantContext();
+      }
+    }
+    // Check if user registered as accountant
+    // Check if user registered as accountant
+    if(localStorage.getItem('tazrim_user_role')==='accountant'){
+      userRole='accountant'; currentTenant=null; return;
+    }
+    currentTenant=null; userRole=null;
+    return;
+  }
+  
+  // Check for owner/user role first
+  const ownerRow = tuRows.find(r=>r.role==='owner') || tuRows.find(r=>r.role==='user');
+  const acctRow = tuRows.find(r=>r.role==='accountant');
+  
+  if(ownerRow){
+    const {data:t} = await dbAdmin.from('tenants').select('*').eq('id',ownerRow.tenant_id).single();
+    currentTenant = t;
+    userRole = ownerRow.role;
+    // Check expiration (skip for free accounts)
+    if(t && !isFreeAccount(t) && t.plan_expires_at && new Date(t.plan_expires_at)<new Date()){
+      currentTenant.is_active = false;
+    }
+    // Load banks for all plans
+    if(t){
+      const {data:banks} = await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',t.id).order('display_order',{ascending:true});
+      tenantBanks = banks||[];
+    }
+    await loadTenantUsers();
+  } else if(acctRow){
+    userRole = 'accountant';
+    currentTenant = null;
+    localStorage.setItem('tazrim_user_role','accountant'); // persist role
+  }
+}
+
+
+// ─── DATA ─────────────────────────────────────────────
+async function loadData() {
+  if(!currentTenant) return;
+  const tid = currentTenant.id;
+  const [{data:sets},{data:txs}] = await Promise.all([
+    dbAdmin.from('settings').select('*').eq('tenant_id',tid).single(),
+    dbAdmin.from('transactions').select('*').eq('tenant_id',tid).order('date',{ascending:true})
+  ]);
+  if(sets) balance = parseFloat(sets.current_balance)||0;
+  else balance = 0;
+  if(txs) transactions = txs;
+  else transactions = [];
+}
+
+// ─── INIT ─────────────────────────────────────────────
+async function init() {
+  console.log('[INIT] Starting...');
+  try {
+    const {data:{session:s}} = await db.auth.getSession();
+    session = s;
+    console.log('[INIT] Session:', s ? s.user.email : 'none');
+    if(s){
+      await loadTenantContext();
+      console.log('[INIT] Tenant:', currentTenant ? currentTenant.id : 'none', 'Role:', userRole);
+      if(currentTenant && currentTenant.is_active) await loadData();
+    }
+  } catch(e){ console.error('[INIT] getSession error',e); }
+  console.log('[INIT] Calling render...');
+  render();
+
+  db.auth.onAuthStateChange(async(event, sess)=>{
+    console.log('[AUTH]', event);
+    if(event==='SIGNED_IN'){
+      session=sess;
+      await loadTenantContext();
+      if(currentTenant && currentTenant.is_active) await loadData();
+      render();
+    } else if(event==='SIGNED_OUT'){
+      session=null; currentTenant=null; userRole=null; tenantBanks=[]; tenantUsers=[];
+      balance=0; transactions=[];
+      render();
+    } else if(event==='TOKEN_REFRESHED'){
+      session=sess;
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
