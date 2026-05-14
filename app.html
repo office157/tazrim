@@ -1647,4 +1647,15 @@ async function init() {
       render();
     } else if(event==='SIGNED_OUT'){
       session=null; currentTenant=null; userRole=null; tenantBanks=[]; tenantUsers=[];
-  
+      balance=0; transactions=[];
+      render();
+    } else if(event==='TOKEN_REFRESHED'){
+      session=sess;
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
