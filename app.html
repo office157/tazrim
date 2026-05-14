@@ -345,7 +345,7 @@ const fmtDate = s => { if(!s) return ''; const d=new Date(s+'T00:00:00'); return
 const daysBetween = (a,b) => Math.round((new Date(b)-new Date(a))/(864e5));
 const daysFromNow = s => Math.ceil((new Date(s+' 00:00:00')-new Date())/(864e5));
 
-const matchesSearch=(t,q)=>{ const lq=q.toLowerCase(); return (t.description||'').toLowerCase().includes(lq)||(t.vendor||'').toLowerCase().includes(lq)||String(t.amount).includes(lq); };
+const matchesSearch=(t,q)=>{ const lq=q.toLowerCase(); const bankName=t.bank_id&&tenantBanks.length>0?bankDisplayName(tenantBanks.find(b=>b.id===t.bank_id)||{bank_name:''}).toLowerCase():''; return (t.description||'').toLowerCase().includes(lq)||(t.vendor||'').toLowerCase().includes(lq)||String(t.amount).includes(lq)||bankName.includes(lq); };
 
 // Tenant type helpers — DB only allows plan='starter'/'pro' and billing_cycle='monthly'/'yearly'
 // We identify trial/free by expiry date: free=2090+, trial=short expiry with no payment logic
@@ -1647,15 +1647,4 @@ async function init() {
       render();
     } else if(event==='SIGNED_OUT'){
       session=null; currentTenant=null; userRole=null; tenantBanks=[]; tenantUsers=[];
-      balance=0; transactions=[];
-      render();
-    } else if(event==='TOKEN_REFRESHED'){
-      session=sess;
-    }
-  });
-}
-
-init();
-</script>
-</body>
-</html>
+  
