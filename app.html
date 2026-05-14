@@ -642,7 +642,10 @@ function renderConfirmModal() {
   const isIncome = confirmModal.txType==='income';
   const sign = isIncome ? '+' : '−';
   const color = isIncome ? 'var(--green)' : 'var(--orange)';
-  const newBal = isIncome ? balance + parseFloat(confirmModal.amount) : balance - parseFloat(confirmModal.amount);
+  const delta = isIncome ? parseFloat(confirmModal.amount) : -parseFloat(confirmModal.amount);
+  const bank = confirmModal.bank_id ? tenantBanks.find(b=>b.id===confirmModal.bank_id) : null;
+  const newBal = bank ? parseFloat(bank.balance||0) + delta : balance + delta;
+  const balLabel = bank ? bankDisplayName(bank) : 'יתרה כללית';
   return `<div class="overlay" id="confirm-overlay">
     <div class="modal glass anim-fade" style="max-width:400px">
       <div class="modal-body" style="gap:10px">
@@ -653,10 +656,10 @@ function renderConfirmModal() {
           <span style="color:${color};font-weight:700;font-size:16px">${sign}${fmt(confirmModal.amount)}</span>
         </div>
         <div style="text-align:center;color:rgba(255,255,255,.7);font-size:14px;margin-top:4px">
-          האם ברצונך לעדכן את יתרת הבנק?
+          האם ברצונך לעדכן את יתרת ${bank ? bankDisplayName(bank) : 'הבנק'}?
         </div>
         <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:10px 14px;font-size:13px;color:rgba(255,255,255,.45);text-align:center">
-          יתרה חדשה: <strong style="color:#fff">${fmt(newBal)}</strong>
+          ${balLabel}: <strong style="color:#fff">${fmt(newBal)}</strong>
         </div>
         <div class="modal-actions" style="margin-top:4px">
           <button class="btn-modal-cancel" id="confirm-no">לא</button>
@@ -824,7 +827,7 @@ function bindTables() {
       e.stopPropagation();
       const tx = transactions.find(t=>t.id===btn.dataset.id);
       if(!tx) return;
-      confirmModal = { type:'complete', id:tx.id, name:tx.description, amount:tx.amount, txType:tx.type };
+      confirmModal = { type:'complete', id:tx.id, name:tx.description, amount:tx.amount, txType:tx.type, bank_id:tx.bank_id };
       render();
     });
   });
@@ -859,13 +862,21 @@ function bindConfirmModal() {
       await loadData(); render();
     });
     document.getElementById('confirm-yes')?.addEventListener('click', async()=>{
-      const {id,amount,txType}=confirmModal; confirmModal=null;
-      const newBal = txType==='income' ? balance+parseFloat(amount) : balance-parseFloat(amount);
-      await Promise.all([
-        dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id),
-        dbAdmin.from('settings').update({current_balance:newBal}).eq('tenant_id',currentTenant.id)
-      ]);
-      balance=newBal;
+      const {id,amount,txType,bank_id}=confirmModal; confirmModal=null;
+      const delta = txType==='income' ? parseFloat(amount) : -parseFloat(amount);
+      const updates = [dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id)];
+      if(bank_id && tenantBanks.length>0){
+        const bank = tenantBanks.find(b=>b.id===bank_id);
+        if(bank){ updates.push(dbAdmin.from('tenant_banks').update({balance:parseFloat(bank.balance||0)+delta}).eq('id',bank_id)); }
+      } else {
+        updates.push(dbAdmin.from('settings').update({current_balance:balance+delta}).eq('tenant_id',currentTenant.id));
+        balance += delta;
+      }
+      await Promise.all(updates);
+      if(tenantBanks.length>0){
+        const {data:bnks} = await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order');
+        tenantBanks = bnks||[];
+      }
       await loadData(); render();
     });
   }
