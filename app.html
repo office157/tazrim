@@ -58,12 +58,12 @@ select option{background:#fff;color:#111}
 /* ===== MAIN ===== */
 #main{max-width:1100px;margin:0 auto;padding:28px 16px;display:flex;flex-direction:column;gap:22px}
 /* ===== HERO CARDS ===== */
-.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-@media(max-width:640px){.hero-grid{grid-template-columns:1fr}}
-.hero-card{padding:28px 28px 24px;border-radius:18px}
-.hero-label{color:rgba(255,255,255,.38);font-size:13px;margin-bottom:8px}
+.hero-grid{display:flex;flex-direction:column;gap:16px}
+
+
+
 .hero-value{font-size:44px;font-weight:700;line-height:1.1}
-.hero-sub{color:rgba(255,255,255,.3);font-size:12px;margin-top:6px}
+
 .balance-edit-icon{color:rgba(255,255,255,.2);font-size:18px;margin-right:8px;cursor:pointer;transition:color .2s;vertical-align:middle}
 .balance-edit-icon:hover{color:var(--teal)}
 .balance-edit-row{display:flex;align-items:center;gap:10px;margin-top:6px}
@@ -205,20 +205,31 @@ select option{background:#fff;color:#111}
 .add-user-row{display:flex;gap:10px}
 .add-user-row input{flex:1}
 /* ===== MULTI-BANK (PRO) ===== */
-.balance-section{display:flex;flex-direction:column;gap:14px}
-.combined-balance{border-radius:18px;padding:24px 20px;text-align:center;border:2px solid var(--teal);background:linear-gradient(135deg,rgba(0,174,204,.08),rgba(13,27,75,.6));backdrop-filter:blur(20px)}
-.combined-balance .cb-label{font-size:13px;color:var(--text-mid);margin-bottom:6px;letter-spacing:.5px}
-.combined-balance .cb-value{font-size:36px;font-weight:700;line-height:1.1}
-.combined-balance .cb-zero{font-size:12px;margin-top:8px}
-.banks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.balance-section{display:flex;flex-direction:column;gap:16px}
+.combined-balance{border-radius:20px;padding:32px 28px;text-align:center;border:1px solid rgba(0,174,204,.25);background:linear-gradient(160deg,rgba(0,174,204,.06) 0%,rgba(13,27,75,.7) 100%);backdrop-filter:blur(24px);position:relative;overflow:hidden}
+.combined-balance::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 20%,rgba(0,174,204,.08),transparent 50%);pointer-events:none}
+.combined-balance .cb-label{font-size:14px;color:var(--text-mid,rgba(255,255,255,.5));margin-bottom:10px;letter-spacing:.5px;font-weight:500}
+.combined-balance .cb-value{font-size:42px;font-weight:800;line-height:1.1;letter-spacing:-.5px}
+.combined-balance .cb-zero{font-size:13px;margin-top:12px;font-weight:500}
+.zero-card{border-radius:20px;padding:28px 24px;text-align:center;border:1px solid rgba(16,185,129,.15);background:linear-gradient(160deg,rgba(16,185,129,.04) 0%,rgba(13,27,75,.5) 100%);backdrop-filter:blur(20px)}
+.zero-card .zc-label{font-size:14px;color:var(--text-mid,rgba(255,255,255,.5));margin-bottom:10px;font-weight:500}
+.zero-card .zc-value{font-size:34px;font-weight:800;line-height:1.2;letter-spacing:-.3px}
+.zero-card .zc-sub{font-size:13px;color:var(--text-dim,rgba(255,255,255,.35));margin-top:8px;font-weight:500}
+[data-theme="light"] .zero-card{background:linear-gradient(160deg,rgba(16,185,129,.03) 0%,rgba(255,255,255,.9) 100%);border-color:rgba(16,185,129,.15)}
+[data-theme="light"] .zero-card .zc-value{color:var(--text)}
+[data-theme="light"] .zero-card .zc-label{color:var(--text-mid)}
+[data-theme="light"] .zero-card .zc-sub{color:var(--text-dim)}
+.banks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
 @media(max-width:600px){.banks-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:400px){.banks-grid{grid-template-columns:1fr}}
-.bank-card{border-radius:16px;padding:18px 14px;text-align:center;transition:all .2s}
-.bank-card[data-bank-id]:hover{border-color:rgba(0,174,204,.4);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,174,204,.15)}
-.bank-card .bk-name{font-size:14px;font-weight:600;margin-bottom:2px}
-.bank-card .bk-sub{font-size:11px;color:var(--text-dim);margin-bottom:6px}
-.bank-card .bk-balance{font-size:24px;font-weight:700}
-.bank-card .bk-zero{font-size:11px;margin-top:6px}
+.bank-card{border-radius:18px;padding:22px 18px;text-align:center;transition:all .25s;position:relative;overflow:hidden}
+.bank-card::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,174,204,.03) 0%,transparent 60%);pointer-events:none;opacity:0;transition:opacity .25s}
+.bank-card[data-bank-id]:hover{border-color:rgba(0,174,204,.45);transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,174,204,.18)}
+.bank-card[data-bank-id]:hover::after{opacity:1}
+.bank-card .bk-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.bank-card .bk-sub{font-size:12px;color:var(--text-dim);margin-bottom:8px}
+.bank-card .bk-balance{font-size:28px;font-weight:800;letter-spacing:-.3px}
+.bank-card .bk-zero{font-size:12px;margin-top:8px;font-weight:500}
 .btn-add-bank{background:transparent;border:1px dashed var(--border);color:var(--text-dim);border-radius:16px;padding:18px;cursor:pointer;font-size:14px;transition:all .2s;width:100%}
 .btn-add-bank:hover{border-color:var(--teal);color:var(--teal)}
 /* ===== BANK MODAL ===== */
@@ -242,9 +253,7 @@ select option{background:#fff;color:#111}
 [data-theme="light"] #header{background:rgba(255,255,255,.92);border-bottom-color:rgba(0,0,0,.06)}
 [data-theme="light"] .btn-logout{color:rgba(0,0,0,.4)}
 [data-theme="light"] .btn-logout:hover{color:rgba(0,0,0,.7)}
-[data-theme="light"] .hero-label{color:var(--text-mid)}
 [data-theme="light"] .hero-value{color:var(--text)}
-[data-theme="light"] .hero-sub{color:var(--text-dim)}
 [data-theme="light"] .balance-edit-icon{color:rgba(0,0,0,.25)}
 [data-theme="light"] .balance-input{color:var(--text);background:var(--input-bg);border-color:rgba(0,174,204,.4)}
 [data-theme="light"] .btn-cancel{color:rgba(0,0,0,.35)}
@@ -294,9 +303,14 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .btn-secondary:hover{border-color:rgba(0,174,204,.4);color:var(--text)}
 [data-theme="light"] .form-label{color:rgba(0,0,0,.5)}
 [data-theme="light"] .form-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
-[data-theme="light"] .combined-balance{background:linear-gradient(135deg,rgba(0,174,204,.06),rgba(255,255,255,.8))}
+[data-theme="light"] .combined-balance{background:linear-gradient(160deg,rgba(0,174,204,.04) 0%,rgba(255,255,255,.9) 100%);border-color:rgba(0,174,204,.2)}
+[data-theme="light"] .combined-balance::before{background:radial-gradient(circle at 30% 20%,rgba(0,174,204,.05),transparent 50%)}
 [data-theme="light"] .combined-balance .cb-value{color:var(--text)}
+[data-theme="light"] .combined-balance .cb-label{color:var(--text-mid)}
+[data-theme="light"] .bank-card{background:rgba(255,255,255,.85);border-color:rgba(0,0,0,.08)}
+[data-theme="light"] .bank-card[data-bank-id]:hover{border-color:rgba(0,174,204,.35);box-shadow:0 8px 28px rgba(0,174,204,.12)}
 [data-theme="light"] .bank-card .bk-balance{color:var(--teal)}
+[data-theme="light"] .bank-card .bk-name{color:var(--text)}
 [data-theme="light"] .bank-modal .modal-label{color:rgba(0,0,0,.5)}
 [data-theme="light"] .bank-modal .modal-input{color:var(--text);background:var(--input-bg);border-color:var(--border)}
 [data-theme="light"] .type-toggle-btn{color:var(--text-mid)}
@@ -447,8 +461,8 @@ function render() {
 // ─── BALANCE CARD ────────────────────────────────────
 function renderBalanceCard(zeroDate) {
   if(editingBalance) return `
-  <div class="hero-card glass anim-fade">
-    <div class="hero-label">יתרה נוכחית בבנק</div>
+  <div class="combined-balance glass anim-fade">
+    <div class="cb-label">💰 יתרה נוכחית בבנק</div>
     <div class="balance-edit-row">
       <input class="balance-input" id="bal-input" type="number" value="${balance}" autofocus/>
       <button class="btn-save" id="btn-save-bal">שמור</button>
@@ -456,21 +470,21 @@ function renderBalanceCard(zeroDate) {
     </div>
   </div>`;
   return `
-  <div class="hero-card glass anim-up" id="bal-card" style="cursor:pointer" title="לחץ לעריכה">
-    <div class="hero-label">יתרה נוכחית בבנק</div>
-    <div class="hero-value" style="color:${balance<0?'var(--red)':'#fff'}">${fmt(balance)}<span class="balance-edit-icon" title="עריכה">✏️</span></div>
+  <div class="combined-balance glass anim-up" id="bal-card" style="cursor:pointer" title="לחץ לעריכה">
+    <div class="cb-label">💰 יתרה נוכחית בבנק</div>
+    <div class="cb-value" style="color:${balance<0?'var(--red)':'var(--text)'}">${fmt(balance)}<span class="balance-edit-icon" title="עריכה">✏️</span></div>
   </div>`;
 }
 
 function renderZeroCard(zeroDate) {
   const neg = !!zeroDate;
-  return `<div class="hero-card glass anim-up" style="border-color:${neg?'rgba(239,68,68,.2)':'rgba(16,185,129,.2)'}">
-    <div class="hero-label">תאריך כניסה צפוי למינוס</div>
+  return `<div class="zero-card glass anim-up" style="border-color:${neg?'rgba(239,68,68,.2)':'rgba(16,185,129,.2)'}">
+    <div class="zc-label">📅 תאריך כניסה צפוי למינוס</div>
     ${neg
-      ? `<div class="hero-value" style="color:var(--red);font-size:32px">${fmtDate(zeroDate)}</div>
-         <div class="hero-sub">בעוד ${daysFromNow(zeroDate)} ימים</div>`
-      : `<div class="hero-value" style="color:var(--green);font-size:28px">אין צפי למינוס ✓</div>
-         <div class="hero-sub">כל התנועות מאוזנות</div>`
+      ? `<div class="zc-value" style="color:var(--red)">${fmtDate(zeroDate)}</div>
+         <div class="zc-sub">בעוד ${daysFromNow(zeroDate)} ימים</div>`
+      : `<div class="zc-value" style="color:var(--green)">אין צפי למינוס ✓</div>
+         <div class="zc-sub">כל התנועות מאוזנות</div>`
     }
   </div>`;
 }
