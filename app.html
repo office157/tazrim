@@ -241,6 +241,12 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .btn-plan-select.disabled{background:rgba(0,0,0,.04);color:var(--text-dim)}
 [data-theme="light"] .accountant-note{border-color:rgba(0,0,0,.08);background:rgba(0,0,0,.02)}
 
+.acct-nickname{font-size:12px;color:var(--teal);margin-top:2px;font-weight:500}
+.btn-nickname{position:absolute;top:10px;left:10px;background:transparent;border:none;cursor:pointer;font-size:14px;opacity:.4;transition:opacity .2s;padding:4px}
+.btn-nickname:hover{opacity:1}
+.acct-card{position:relative}
+[data-theme="light"] .acct-nickname{color:var(--teal)}
+
 .zero-card{border-radius:20px;padding:28px 24px;text-align:center;border:1px solid rgba(16,185,129,.15);background:linear-gradient(160deg,rgba(16,185,129,.04) 0%,rgba(13,27,75,.5) 100%);backdrop-filter:blur(20px)}
 .zero-card .zc-label{font-size:14px;color:var(--text-mid,rgba(255,255,255,.5));margin-bottom:10px;font-weight:500}
 .zero-card .zc-value{font-size:34px;font-weight:800;line-height:1.2;letter-spacing:-.3px}
@@ -459,8 +465,8 @@ function render() {
   <div id="header" class="anim-up">
     <div class="header-actions">
       ${userRole==='accountant'?`<button class="btn-add" id="btn-back-acct" style="background:transparent;border:1px solid var(--teal);color:var(--teal);box-shadow:none">← חזרה לדשבורד</button>`:''}
-      ${userRole!=='accountant'?`<button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>`:''}
-      ${userRole!=='accountant'?`<button class="btn-settings" id="btn-settings" title="הגדרות">⚙</button>`:''}
+      <button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>
+      <button class="btn-settings" id="btn-settings" title="הגדרות">⚙</button>
       <button class="theme-toggle" id="theme-toggle" title="מצב בהיר/כהה">🌙</button>
       <button class="btn-logout" id="btn-logout">יציאה</button>
     </div>
@@ -1494,21 +1500,45 @@ async function bindAccountantDash() {
     const {data:txs} = await dbAdmin.from('transactions').select('*').eq('tenant_id',t.id);
     const zd = calcZeroDate(txs||[], bal);
     const expired = t.plan_expires_at && new Date(t.plan_expires_at)<new Date();
+    const nicknames = JSON.parse(localStorage.getItem('tazrim_acct_nicknames')||'{}');
+    const nick = nicknames[t.id]||'';
     html+=`<div class="acct-card glass" data-tid="${t.id}" style="${expired?'opacity:.5':''}">
       <div class="acct-client">${t.company_name||t.owner_email}</div>
+      ${nick?`<div class="acct-nickname">${nick}</div>`:''}
       <div class="acct-balance ${bal<0?'bal-neg':''}">${fmt(bal)}</div>
       ${zd?`<div class="acct-zero" style="color:var(--red)">כניסה למינוס: ${fmtDate(zd)}</div>`:`<div class="acct-zero" style="color:var(--green)">תקין</div>`}
       ${expired?'<div style="color:var(--red);font-size:12px;margin-top:6px">⚠ מנוי לא פעיל</div>':''}
+      <button class="btn-nickname" data-tid="${t.id}" title="כינוי">✏️</button>
     </div>`;
   }
   grid.innerHTML=html;
 
   // Click to enter tenant
+  // Nickname edit buttons
+  grid.querySelectorAll('.btn-nickname').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const tid=btn.dataset.tid;
+      const nicknames=JSON.parse(localStorage.getItem('tazrim_acct_nicknames')||'{}');
+      const current=nicknames[tid]||'';
+      const newNick=prompt('כינוי ללקוח (נראה רק לך):',current);
+      if(newNick===null) return;
+      if(newNick.trim()) nicknames[tid]=newNick.trim();
+      else delete nicknames[tid];
+      localStorage.setItem('tazrim_acct_nicknames',JSON.stringify(nicknames));
+      bindAccountantDash(); // refresh
+    });
+  });
+
   grid.querySelectorAll('.acct-card').forEach(el=>el.addEventListener('click',async()=>{
     const tid=el.dataset.tid;
     const t=tenants.find(x=>x.id===tid);
     if(!t||!t.is_active) return;
     currentTenant=t; userRole='accountant';
+    // Load banks for accountant view
+    const {data:bnks} = await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',t.id).order('display_order');
+    tenantBanks = bnks||[];
+    await loadTenantUsers();
     await loadData(); render();
   }));
 }
