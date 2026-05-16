@@ -389,6 +389,8 @@ const fmtDate = s => { if(!s) return ''; const d=new Date(s+'T00:00:00'); return
 const daysBetween = (a,b) => Math.round((new Date(b)-new Date(a))/(864e5));
 const daysFromNow = s => Math.ceil((new Date(s+' 00:00:00')-new Date())/(864e5));
 
+const sanitizeEmail=(e)=>e.replace(/[\u200f\u200e\u202a\u202b\u202c\u200b\u00a0\ufeff]/g,'').trim().toLowerCase();
+
 const matchesSearch=(t,q)=>{ const lq=q.toLowerCase(); const bankName=t.bank_id&&tenantBanks.length>0?bankDisplayName(tenantBanks.find(b=>b.id===t.bank_id)||{bank_name:''}).toLowerCase():''; return (t.description||'').toLowerCase().includes(lq)||(t.vendor||'').toLowerCase().includes(lq)||String(t.amount).includes(lq)||bankName.includes(lq); };
 
 // Tenant type helpers — DB only allows plan='starter'/'pro' and billing_cycle='monthly'/'yearly'
@@ -1645,7 +1647,7 @@ function bindSettings() {
     await loadTenantUsers(); render();
   }));
   document.getElementById('btn-add-user')?.addEventListener('click',async()=>{
-    const email=document.getElementById('new-user-email').value.trim();
+    const email=sanitizeEmail(document.getElementById('new-user-email').value);
     const role=document.getElementById('new-user-role').value;
     if(!email) return;
     const {error}=await dbAdmin.from('tenant_users').insert([{
