@@ -625,10 +625,10 @@ function renderConfirmModal() {
         <div class="modal-body" style="gap:10px">
           <div style="text-align:center;font-size:36px">🗑️</div>
           <div style="text-align:center;font-weight:700;font-size:17px">מחיקת תנועה</div>
-          <div style="text-align:center;color:rgba(255,255,255,.55);font-size:14px;line-height:1.6">
+          <div style="text-align:center;color:var(--text-mid,rgba(255,255,255,.55));font-size:14px;line-height:1.6">
             האם אתה בטוח שברצונך למחוק את התנועה<br/>
-            <strong style="color:#fff">"${confirmModal.name}"</strong>?<br/>
-            <span style="font-size:12px;color:rgba(255,255,255,.3)">פעולה זו אינה ניתנת לביטול</span>
+            <strong style="color:var(--text,#fff)">"${confirmModal.name}"</strong>?<br/>
+            <span style="font-size:12px;color:var(--text-dim,rgba(255,255,255,.3))">פעולה זו אינה ניתנת לביטול</span>
           </div>
           <div class="modal-actions" style="margin-top:8px">
             <button class="btn-modal-cancel" id="confirm-cancel">ביטול</button>
@@ -651,15 +651,15 @@ function renderConfirmModal() {
       <div class="modal-body" style="gap:10px">
         <div style="text-align:center;font-size:36px">✅</div>
         <div style="text-align:center;font-weight:700;font-size:17px">סימון כבוצע</div>
-        <div style="text-align:center;color:rgba(255,255,255,.55);font-size:14px;line-height:1.8">
-          <strong style="color:#fff">"${confirmModal.name}"</strong><br/>
+        <div style="text-align:center;color:var(--text-mid,rgba(255,255,255,.55));font-size:14px;line-height:1.8">
+          <strong style="color:var(--text,#fff)">"${confirmModal.name}"</strong><br/>
           <span style="color:${color};font-weight:700;font-size:16px">${sign}${fmt(confirmModal.amount)}</span>
         </div>
-        <div style="text-align:center;color:rgba(255,255,255,.7);font-size:14px;margin-top:4px">
+        <div style="text-align:center;color:var(--text,rgba(255,255,255,.7));font-size:14px;margin-top:4px">
           האם ברצונך לעדכן את יתרת ${bank ? bankDisplayName(bank) : 'הבנק'}?
         </div>
-        <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:10px 14px;font-size:13px;color:rgba(255,255,255,.45);text-align:center">
-          ${balLabel}: <strong style="color:#fff">${fmt(newBal)}</strong>
+        <div style="background:var(--input-bg,rgba(255,255,255,.04));border-radius:10px;padding:10px 14px;font-size:13px;color:var(--text-dim,rgba(255,255,255,.45));text-align:center">
+          ${balLabel}: <strong style="color:var(--text,#fff)">${fmt(newBal)}</strong>
         </div>
         <div class="modal-actions" style="margin-top:4px">
           <button class="btn-modal-cancel" id="confirm-no">לא</button>
