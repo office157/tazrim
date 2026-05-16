@@ -212,6 +212,35 @@ select option{background:#fff;color:#111}
 .combined-balance .cb-label{font-size:14px;color:var(--text-mid,rgba(255,255,255,.5));margin-bottom:10px;letter-spacing:.5px;font-weight:500}
 .combined-balance .cb-value{font-size:42px;font-weight:800;line-height:1.1;letter-spacing:-.5px}
 .combined-balance .cb-zero{font-size:13px;margin-top:12px;font-weight:500}
+.upgrade-overlay{position:fixed;inset:0;background:rgba(4,11,30,.85);backdrop-filter:blur(8px);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+.upgrade-card{width:95%;max-width:820px;border-radius:24px;padding:32px 28px;animation:fadeIn .3s ease-out;max-height:90vh;overflow-y:auto}
+.upgrade-title{text-align:center;font-size:22px;font-weight:800;margin-bottom:6px}
+.upgrade-sub{text-align:center;font-size:14px;color:var(--text-dim,rgba(255,255,255,.4));margin-bottom:28px}
+.plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:700px){.plans-grid{grid-template-columns:1fr}}
+.plan-card{border-radius:18px;padding:24px 18px;text-align:center;border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);transition:all .25s;position:relative}
+.plan-card.current{border-color:var(--teal);background:rgba(0,174,204,.06)}
+.plan-card.current::after{content:'המסלול שלך';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--teal);color:#07112B;font-size:11px;font-weight:700;padding:3px 12px;border-radius:8px;white-space:nowrap}
+.plan-card:hover{border-color:rgba(0,174,204,.3);transform:translateY(-2px)}
+.plan-card .plan-name{font-size:18px;font-weight:800;margin-bottom:4px;margin-top:8px}
+.plan-card .plan-price{font-size:28px;font-weight:800;color:var(--teal);margin:10px 0}
+.plan-card .plan-price-sub{font-size:12px;color:var(--text-dim,rgba(255,255,255,.4));margin-top:-6px;margin-bottom:14px}
+.plan-card .plan-features{text-align:right;font-size:13px;line-height:2.2;color:var(--text-mid,rgba(255,255,255,.6))}
+.plan-card .plan-features .feat{display:flex;align-items:center;gap:8px}
+.plan-card .plan-features .feat::before{content:'✓';color:var(--teal);font-weight:700;flex-shrink:0}
+.btn-plan-select{width:100%;margin-top:18px;padding:12px;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;transition:all .25s}
+.btn-plan-select.active{background:var(--teal);color:#07112B}
+.btn-plan-select.active:hover{background:#00d4ff;transform:translateY(-1px)}
+.btn-plan-select.disabled{background:rgba(255,255,255,.06);color:var(--text-dim,rgba(255,255,255,.3));cursor:default}
+.accountant-note{margin-top:20px;padding:16px 20px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);text-align:center;font-size:13px;color:var(--text-mid,rgba(255,255,255,.55));line-height:1.8}
+.accountant-note a{color:var(--teal);text-decoration:none;font-weight:600}
+[data-theme="light"] .upgrade-card{background:rgba(255,255,255,.97)}
+[data-theme="light"] .plan-card{border-color:rgba(0,0,0,.08);background:rgba(0,0,0,.02)}
+[data-theme="light"] .plan-card.current{border-color:var(--teal);background:rgba(0,174,204,.04)}
+[data-theme="light"] .plan-card:hover{border-color:rgba(0,174,204,.25)}
+[data-theme="light"] .btn-plan-select.disabled{background:rgba(0,0,0,.04);color:var(--text-dim)}
+[data-theme="light"] .accountant-note{border-color:rgba(0,0,0,.08);background:rgba(0,0,0,.02)}
+
 .zero-card{border-radius:20px;padding:28px 24px;text-align:center;border:1px solid rgba(16,185,129,.15);background:linear-gradient(160deg,rgba(16,185,129,.04) 0%,rgba(13,27,75,.5) 100%);backdrop-filter:blur(20px)}
 .zero-card .zc-label{font-size:14px;color:var(--text-mid,rgba(255,255,255,.5));margin-bottom:10px;font-weight:500}
 .zero-card .zc-value{font-size:34px;font-weight:800;line-height:1.2;letter-spacing:-.3px}
@@ -348,7 +377,7 @@ const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
 // ─── STATE ───────────────────────────────────────────
 let session=null, balance=0, transactions=[], editingBalance=false;
 let currentTenant=null, tenantBanks=[], userRole=null, tenantUsers=[];
-let settingsOpen=false, onboardPlan='starter', onboardCycle='monthly';
+let settingsOpen=false, upgradeModalOpen=false, onboardPlan='starter', onboardCycle='monthly';
 let modalOpen=false, modalType='expense', modalRecurring=false;
 let selectedTxId=null, notifTimer=null;
 let confirmModal=null; // { type:'delete'|'complete', id, name, amount?, txType? }
@@ -452,6 +481,7 @@ function render() {
   </div>
   ${modalOpen ? renderModal() : ''}
   ${settingsOpen ? renderSettings() : ''}
+  ${upgradeModalOpen ? renderUpgradeModal() : ''}
   ${confirmModal ? renderConfirmModal() : ''}
   `;
   bindDashboard(future, completed, zeroDate);
@@ -778,6 +808,7 @@ function bindDashboard(future, completed, zeroDate) {
 
   // Settings panel
   if(settingsOpen) bindSettings();
+  if(upgradeModalOpen) bindUpgradeModal();
 }
 
 async function saveBalance() {
@@ -1481,6 +1512,90 @@ async function bindAccountantDash() {
 }
 
 // ─── SETTINGS PANEL ──────────────────────────────
+
+// ─── UPGRADE MODAL ──────────────��──────────────────
+function renderUpgradeModal() {
+  const plan = currentTenant?.plan||'starter';
+  const isTrial = isTrialAccount(currentTenant);
+  const isFree = isFreeAccount(currentTenant);
+  const currentPlanKey = isFree?'free':isTrial?'trial':plan;
+  
+  return `<div class="upgrade-overlay" id="upgrade-overlay">
+    <div class="upgrade-card glass anim-fade">
+      <div class="upgrade-title">שדרוג מסלול</div>
+      <div class="upgrade-sub">בחרו את המסלול המתאים לעסק שלכם</div>
+      <div class="plans-grid">
+        <div class="plan-card${currentPlanKey==='trial'||currentPlanKey==='free'?' current':''}">
+          <div class="plan-name">ניסיון</div>
+          <div class="plan-price">חינם</div>
+          <div class="plan-price-sub">7 ימים</div>
+          <div class="plan-features">
+            <div class="feat">חשבון בנק אחד</div>
+            <div class="feat">2 משתמשים</div>
+            <div class="feat">תנועות ללא הגבלה</div>
+            <div class="feat">התראת מינוס</div>
+          </div>
+          <button class="btn-plan-select disabled">${currentPlanKey==='trial'||currentPlanKey==='free'?'המסלול הנוכחי':'—'}</button>
+        </div>
+        <div class="plan-card${currentPlanKey==='starter'?' current':''}">
+          <div class="plan-name">Starter</div>
+          <div class="plan-price">12₪</div>
+          <div class="plan-price-sub">לחודש + מע"מ (120₪ שנתי)</div>
+          <div class="plan-features">
+            <div class="feat">חשבון בנק אחד</div>
+            <div class="feat">2 משתמשים</div>
+            <div class="feat">תנועות ללא הגבלה</div>
+            <div class="feat">התראת מינוס</div>
+            <div class="feat">תמיכה במייל</div>
+          </div>
+          ${currentPlanKey==='starter'
+            ?'<button class="btn-plan-select disabled">המסלול הנוכחי</button>'
+            :'<button class="btn-plan-select active" data-upgrade="starter">שדרוג ל-Starter</button>'}
+        </div>
+        <div class="plan-card${currentPlanKey==='pro'?' current':''}" style="border-color:${currentPlanKey!=='pro'?'rgba(0,174,204,.3)':''}">
+          <div class="plan-name">PRO</div>
+          <div class="plan-price">36₪</div>
+          <div class="plan-price-sub">לחודש + מע"מ (360₪ שנתי)</div>
+          <div class="plan-features">
+            <div class="feat">עד 5 חשבונות בנק</div>
+            <div class="feat">6 משתמשים</div>
+            <div class="feat">תנועות ללא הגבלה</div>
+            <div class="feat">יתרה מאוחדת</div>
+            <div class="feat">התראת מינוס לכל חשבון</div>
+            <div class="feat">שיוך תנועות לבנק</div>
+            <div class="feat">תמיכה בעדיפות</div>
+          </div>
+          ${currentPlanKey==='pro'
+            ?'<button class="btn-plan-select disabled">המסלול הנוכחי</button>'
+            :'<button class="btn-plan-select active" data-upgrade="pro">שדרוג ל-PRO</button>'}
+        </div>
+      </div>
+      <div class="accountant-note">
+        💼 למעבר למסלול <strong>הנהלת חשבונות</strong> (גישה מוגבלת לצפייה בלבד) —<br/>
+        צרו קשר: <a href="mailto:office@tactigo.co.il">office@tactigo.co.il</a>
+      </div>
+      <div style="text-align:center;margin-top:18px">
+        <button class="btn-modal-cancel" id="btn-close-upgrade" style="padding:10px 24px">סגירה</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bindUpgradeModal() {
+  if(!upgradeModalOpen) return;
+  document.getElementById('upgrade-overlay')?.addEventListener('click',e=>{
+    if(e.target.id==='upgrade-overlay'){upgradeModalOpen=false;render();}
+  });
+  document.getElementById('btn-close-upgrade')?.addEventListener('click',()=>{upgradeModalOpen=false;render();});
+  document.querySelectorAll('[data-upgrade]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const plan=btn.dataset.upgrade;
+      if(plan==='starter') window.open('https://pay.sumit.co.il/omkr5y/vas26i/vas26j/payment/','_blank');
+      else if(plan==='pro') window.open('https://pay.sumit.co.il/omkr5y/vas2cv/vas2cw/payment/','_blank');
+    });
+  });
+}
+
 function renderSettings() {
   if(!currentTenant) return '';
   const maxUsers = currentTenant.plan==='pro'?6:2;
@@ -1495,6 +1610,7 @@ function renderSettings() {
           <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px">מסלול</div>
           <div style="font-size:16px;font-weight:700">${isFreeAccount(currentTenant)?'חינמי':isTrialAccount(currentTenant)?'ניסיון חינם (7 ימים)':currentTenant.plan==='pro'?'PRO':'Starter'}${isTrialAccount(currentTenant)||isFreeAccount(currentTenant)?'':' — '+(currentTenant.billing_cycle==='yearly'?'שנתי':'חודשי')}</div>
           ${currentTenant.plan_expires_at?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">תוקף עד: ${fmtDate(currentTenant.plan_expires_at.split('T')[0])}</div>`:''}
+          <button class="btn-upgrade-plan" id="btn-upgrade-plan" style="margin-top:12px;padding:10px 20px;background:linear-gradient(135deg,var(--teal),#00d4ff);color:#07112B;font-weight:700;font-size:14px;border:none;border-radius:12px;cursor:pointer;transition:all .25s">🚀 שדרוג מסלול</button>
         </div>
         <div>
           <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">משתמשים מורשים (${tenantUsers.length}/${maxUsers})</div>
@@ -1519,6 +1635,7 @@ function renderSettings() {
 
 function bindSettings() {
   document.getElementById('btn-close-settings')?.addEventListener('click',()=>{settingsOpen=false;render();});
+  document.getElementById('btn-upgrade-plan')?.addEventListener('click',()=>{settingsOpen=false;upgradeModalOpen=true;render();});
   document.getElementById('settings-overlay')?.addEventListener('click',(e)=>{
     if(e.target.id==='settings-overlay'){settingsOpen=false;render();}
   });
