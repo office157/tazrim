@@ -95,6 +95,7 @@ const db = createClient(SB_URL, SB_KEY);
 const dbAdmin = createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
 const ADMIN_EMAIL = 'office@tactigo.co.il';
 const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
+const esc=(s)=>{if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
 
 let session=null, tenants=[], payments=[], activeTab='clients', modalData=null;
 
@@ -201,7 +202,7 @@ function renderClientsTable() {
   return `<table class="admin-table">
     <tr><th>לקוח</th><th>מסלול</th><th>מחזור</th><th>סטטוס</th><th>תוקף</th><th>נוצר</th><th>פעולות</th></tr>
     ${tenants.map(t=>`<tr>
-      <td><strong>${t.company_name||'—'}</strong><br><span style="font-size:12px;color:var(--text-dim)">${t.owner_email}</span></td>
+      <td><strong>${esc(t.company_name)||'—'}</strong><br><span style="font-size:12px;color:var(--text-dim)">${esc(t.owner_email)}</span></td>
       <td><span class="badge badge-${isFreeAccount(t)?'free':isTrialAccount(t)?'trial':t.plan}">${isFreeAccount(t)?'חינמי':isTrialAccount(t)?'TRIAL':t.plan.toUpperCase()}</span></td>
       <td>${isTrialAccount(t)?'ניסיון':isFreeAccount(t)?'חינמי':t.billing_cycle==='yearly'?'שנתי':'חודשי'}</td>
       <td><span class="badge ${t.is_active?'badge-active':'badge-inactive'}">${t.is_active?'פעיל':'לא פעיל'}</span></td>
@@ -281,7 +282,7 @@ function renderModal() {
           ${tenants.filter(t=>t.is_active).map(t=>`
             <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;font-size:14px">
               <input type="checkbox" value="${t.id}" class="ma-tenant-chk" style="accent-color:var(--teal)"/>
-              ${t.company_name||t.owner_email}
+              ${esc(t.company_name||t.owner_email)}
             </label>
           `).join('')}
         </div>
@@ -298,9 +299,9 @@ function renderModal() {
       <div class="modal-card glass anim-fade">
         <div class="modal-title">עריכת לקוח</div>
         <label class="form-label">אימייל</label>
-        <input class="form-input" id="ec-email" value="${t.owner_email}" disabled style="opacity:.5"/>
+        <input class="form-input" id="ec-email" value="${esc(t.owner_email)}" disabled style="opacity:.5"/>
         <label class="form-label">שם חברה</label>
-        <input class="form-input" id="ec-name" value="${t.company_name||''}"/>
+        <input class="form-input" id="ec-name" value="${esc(t.company_name)||''}"/>
         <div class="form-row">
           <div><label class="form-label">מסלול</label>
             <select class="form-input" id="ec-plan">
@@ -330,15 +331,16 @@ function bindDashboard() {
   document.getElementById('btn-logout')?.addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
 
   // Theme toggle
+  function updateAdminLogos(t){const s=t==='light'?'regular-logo.png':'white-logo.png';document.querySelectorAll('.header-logo img,.login-logo img').forEach(i=>{i.src=s;});}
   document.getElementById('theme-toggle')?.addEventListener('click',()=>{
     const html=document.documentElement;
     const next=html.getAttribute('data-theme')==='light'?'dark':'light';
     html.setAttribute('data-theme',next);
     localStorage.setItem('tazrim_theme',next);
-    document.getElementById('theme-toggle').textContent=next==='light'?'☀️':'🌙';
+    document.getElementById('theme-toggle').textContent=next==='light'?'☀️':'🌙';updateAdminLogos(next);
   });
   const saved=localStorage.getItem('tazrim_theme');
-  if(saved){document.documentElement.setAttribute('data-theme',saved);const b=document.getElementById('theme-toggle');if(b)b.textContent=saved==='light'?'☀️':'🌙';}
+  if(saved){document.documentElement.setAttribute('data-theme',saved);const b=document.getElementById('theme-toggle');if(b)b.textContent=saved==='light'?'☀️':'🌙';updateAdminLogos(saved);}
 
   // Tabs
   document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{

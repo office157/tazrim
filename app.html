@@ -395,6 +395,7 @@ const fmtDate = s => { if(!s) return ''; const d=new Date(s+'T00:00:00'); return
 const daysBetween = (a,b) => Math.round((new Date(b)-new Date(a))/(864e5));
 const daysFromNow = s => Math.ceil((new Date(s+' 00:00:00')-new Date())/(864e5));
 
+const esc=(s)=>{if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
 const sanitizeEmail=(e)=>e.replace(/[\u200f\u200e\u202a\u202b\u202c\u200b\u00a0\ufeff]/g,'').trim().toLowerCase();
 
 const matchesSearch=(t,q)=>{ const lq=q.toLowerCase(); const bankName=t.bank_id&&tenantBanks.length>0?bankDisplayName(tenantBanks.find(b=>b.id===t.bank_id)||{bank_name:''}).toLowerCase():''; return (t.description||'').toLowerCase().includes(lq)||(t.vendor||'').toLowerCase().includes(lq)||String(t.amount).includes(lq)||bankName.includes(lq); };
@@ -427,7 +428,7 @@ function futureWithBalance(txs, bal) {
   const bankBals = {};
   tenantBanks.forEach(b=>{ bankBals[b.id] = parseFloat(b.balance||0); });
   let totalRun = tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : bal;
-  return txs.filter(t=>!t.is_completed).sort((a,b)=>a.date.localeCompare(b.date)).map(t=>{
+  return txs.filter(t=>!t.is_completed).sort((a,b)=>a.date.localeCompare(b.date)||(a.id>b.id?1:-1)).map(t=>{
     const delta = t.type==='income' ? +t.amount : -t.amount;
     totalRun += delta;
     let bankRunning = null;
@@ -544,8 +545,8 @@ function renderFutureTable(future) {
       ${future.map(t=>`
         <tr class="tx-row${selectedTxId===t.id?' selected':''}" data-id="${t.id}">
           <td><button class="check-btn complete-btn" data-id="${t.id}" title="סמן כבוצע"></button></td>
-          <td><span style="font-weight:600">${t.description}</span>${t.is_recurring?` <span class="badge badge-recurring">חוזרת</span>`:''}</td>
-          <td class="td-dim">${t.vendor||'—'}</td>
+          <td><span style="font-weight:600">${esc(t.description)}</span>${t.is_recurring?` <span class="badge badge-recurring">חוזרת</span>`:''}</td>
+          <td class="td-dim">${esc(t.vendor)||'—'}</td>
           <td><span style="font-weight:700;color:${t.type==='income'?'var(--green)':'var(--orange)'}">${t.type==='income'?'+':'−'}${fmt(t.amount)}</span></td>
           <td class="td-dim" style="white-space:nowrap;font-size:13px">${fmtDate(t.date)}</td>
           <td><span class="badge ${t.type==='income'?'badge-income':'badge-expense'}">${t.type==='income'?'הכנסה':'הוצאה'}</span></td>
@@ -572,8 +573,8 @@ function renderCompletedTable(completed) {
       <tbody>
       ${completed.map(t=>`
         <tr class="tx-row" data-id="${t.id}">
-          <td style="opacity:.6">${t.description}</td>
-          <td class="td-dim" style="font-size:13px">${t.vendor||'—'}</td>
+          <td style="opacity:.6">${esc(t.description)}</td>
+          <td class="td-dim" style="font-size:13px">${esc(t.vendor)||'—'}</td>
           <td style="opacity:.6"><span style="color:${t.type==='income'?'var(--green)':'var(--orange)'}">${t.type==='income'?'+':'−'}${fmt(t.amount)}</span></td>
           <td class="td-dim" style="font-size:13px">${fmtDate(t.date)}</td>
           <td><span class="badge ${t.type==='income'?'badge-income':'badge-expense'}">${t.type==='income'?'הכנסה':'הוצאה'}</span></td>
@@ -591,8 +592,8 @@ function renderEditCard(t) {
   const cls = isIncome?'glass-income':'glass-expense';
   return `<div class="edit-card ${cls}">
     <div class="edit-grid">
-      <div><label class="edit-label">תיאור</label><input class="edit-input" id="ed-desc" value="${t.description}"/></div>
-      <div><label class="edit-label">ספק</label><input class="edit-input" id="ed-vendor" value="${t.vendor||''}"/></div>
+      <div><label class="edit-label">תיאור</label><input class="edit-input" id="ed-desc" value="${esc(t.description)}"/></div>
+      <div><label class="edit-label">ספק</label><input class="edit-input" id="ed-vendor" value="${esc(t.vendor)||''}"/></div>
       <div><label class="edit-label">סכום</label><input class="edit-input" id="ed-amount" type="number" value="${t.amount}"/></div>
       <div><label class="edit-label">תאריך</label><input class="edit-input" id="ed-date" type="date" value="${t.date}"/></div>
       ${tenantBanks.length>0 ? `<div><label class="edit-label">חשבון בנק</label><select class="edit-input" id="ed-bank">
@@ -679,7 +680,7 @@ function renderConfirmModal() {
           <div style="text-align:center;font-weight:700;font-size:17px">מחיקת תנועה</div>
           <div style="text-align:center;color:var(--text-mid,rgba(255,255,255,.55));font-size:14px;line-height:1.6">
             האם אתה בטוח שברצונך למחוק את התנועה<br/>
-            <strong style="color:var(--text,#fff)">"${confirmModal.name}"</strong>?<br/>
+            <strong style="color:var(--text,#fff)">"${esc(confirmModal.name)}"</strong>?<br/>
             <span style="font-size:12px;color:var(--text-dim,rgba(255,255,255,.3))">פעולה זו אינה ניתנת לביטול</span>
           </div>
           <div class="modal-actions" style="margin-top:8px">
@@ -704,7 +705,7 @@ function renderConfirmModal() {
         <div style="text-align:center;font-size:36px">✅</div>
         <div style="text-align:center;font-weight:700;font-size:17px">סימון כבוצע</div>
         <div style="text-align:center;color:var(--text-mid,rgba(255,255,255,.55));font-size:14px;line-height:1.8">
-          <strong style="color:var(--text,#fff)">"${confirmModal.name}"</strong><br/>
+          <strong style="color:var(--text,#fff)">"${esc(confirmModal.name)}"</strong><br/>
           <span style="color:${color};font-weight:700;font-size:16px">${sign}${fmt(confirmModal.amount)}</span>
         </div>
         <div style="text-align:center;color:var(--text,rgba(255,255,255,.7));font-size:14px;margin-top:4px">
@@ -821,7 +822,7 @@ function bindDashboard(future, completed, zeroDate) {
 
 async function saveBalance() {
   const val = parseFloat(document.getElementById('bal-input')?.value);
-  if(isNaN(val)) return;
+  if(isNaN(val)){ alert('אנא הכניסו מספר תקין'); return; }
   await dbAdmin.from('settings').update({current_balance:val}).eq('tenant_id',currentTenant.id);
   balance=val; editingBalance=false; render();
 }
@@ -840,7 +841,7 @@ function bindEditCard() {
     };
     const edBank = document.getElementById('ed-bank')?.value;
     if(edBank !== undefined) updateData.bank_id = edBank || null;
-    await dbAdmin.from('transactions').update(updateData).eq('id', id);
+    await dbAdmin.from('transactions').update(updateData).eq('id', id).eq('tenant_id', currentTenant.id);
     selectedTxId=null; await loadData(); render();
   });
   document.getElementById('ed-cancel')?.addEventListener('click',()=>{ selectedTxId=null; render(); });
@@ -905,22 +906,22 @@ function bindConfirmModal() {
     document.getElementById('confirm-cancel')?.addEventListener('click',()=>{ confirmModal=null; render(); });
     document.getElementById('confirm-ok')?.addEventListener('click', async()=>{
       const id=confirmModal.id; confirmModal=null;
-      await dbAdmin.from('transactions').delete().eq('id',id);
+      await dbAdmin.from('transactions').delete().eq('id',id).eq('tenant_id', currentTenant.id);
       await loadData(); render();
     });
   } else {
     document.getElementById('confirm-no')?.addEventListener('click', async()=>{
       const id=confirmModal.id; confirmModal=null;
-      await dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id);
+      await dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id).eq('tenant_id', currentTenant.id);
       await loadData(); render();
     });
     document.getElementById('confirm-yes')?.addEventListener('click', async()=>{
       const {id,amount,txType,bank_id}=confirmModal; confirmModal=null;
       const delta = txType==='income' ? parseFloat(amount) : -parseFloat(amount);
-      const updates = [dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id)];
+      const updates = [dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id).eq('tenant_id', currentTenant.id)];
       if(bank_id && tenantBanks.length>0){
         const bank = tenantBanks.find(b=>b.id===bank_id);
-        if(bank){ updates.push(dbAdmin.from('tenant_banks').update({balance:parseFloat(bank.balance||0)+delta}).eq('id',bank_id)); }
+        if(bank){ updates.push(dbAdmin.from('tenant_banks').update({balance:parseFloat(bank.balance||0)+delta}).eq('id',bank_id).eq('tenant_id', currentTenant.id)); }
       } else {
         updates.push(dbAdmin.from('settings').update({current_balance:balance+delta}).eq('tenant_id',currentTenant.id));
         balance += delta;
@@ -1106,7 +1107,7 @@ function openBankEditModal(bank){
     const btn=document.getElementById('bank-modal-save');
     btn.disabled=true; btn.textContent='שומר...';
     try{
-      await dbAdmin.from('tenant_banks').update({bank_name:bankData,balance:bal}).eq('id',bank.id);
+      await dbAdmin.from('tenant_banks').update({bank_name:bankData,balance:bal}).eq('id',bank.id).eq('tenant_id', currentTenant.id);
       const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
       tenantBanks=banks||[];
       close(); render();
@@ -1114,7 +1115,7 @@ function openBankEditModal(bank){
   });
   document.getElementById('bank-modal-delete')?.addEventListener('click',async()=>{
     if(!confirm('למחוק את חשבון הבנק? תנועות משויכות לא יימחקו.')) return;
-    await dbAdmin.from('tenant_banks').delete().eq('id',bank.id);
+    await dbAdmin.from('tenant_banks').delete().eq('id',bank.id).eq('tenant_id', currentTenant.id);
     const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
     tenantBanks=banks||[];
     close(); render();
@@ -1272,35 +1273,27 @@ function bindOnboarding() {
           window.location.href='login.html'; return;
         }
         const email = session.user.email;
-        console.log('[TRIAL] Starting for:', email);
         const now = new Date();
         const expires = new Date(now);
         expires.setDate(expires.getDate()+7);
 
         // Step 1: Create tenant
-        console.log('[TRIAL] Step 1: Creating tenant...');
         const {data:tenant,error:tErr} = await dbAdmin.from('tenants').insert([{
           owner_email:email, plan:'starter', billing_cycle:'monthly',
           plan_expires_at:expires.toISOString(), is_active:true
         }]).select().single();
         if(tErr){ console.error('[TRIAL] tenant error:', tErr); alert('שגיאה ביצירת חשבון: '+(tErr.message||JSON.stringify(tErr))); this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1'; return; }
         if(!tenant || !tenant.id){ alert('שגיאה: החשבון נוצר אבל לא התקבל מזהה'); this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1'; return; }
-        console.log('[TRIAL] Step 1 done, tenant:', tenant.id);
 
         // Step 2: Add user
-        console.log('[TRIAL] Step 2: Adding tenant_user...');
         const {error:uErr} = await dbAdmin.from('tenant_users').insert([{tenant_id:tenant.id, email, role:'owner', accepted_at:now.toISOString()}]);
         if(uErr) console.error('[TRIAL] tenant_user error:', uErr);
-        console.log('[TRIAL] Step 2 done');
 
         // Step 3: Create settings
-        console.log('[TRIAL] Step 3: Creating settings...');
         const {error:sErr} = await dbAdmin.from('settings').insert([{tenant_id:tenant.id, current_balance:0}]);
         if(sErr) console.error('[TRIAL] settings error:', sErr);
-        console.log('[TRIAL] Step 3 done');
 
         // Step 4: Send welcome email (non-blocking)
-        console.log('[TRIAL] Step 4: Sending email...');
         try{
           await fetch('https://api.resend.com/emails',{
             method:'POST',
@@ -1310,13 +1303,10 @@ function bindOnboarding() {
           });
           await dbAdmin.from('email_log').insert([{tenant_id:tenant.id,to_email:email,template:'welcome_trial'}]);
         }catch(emailErr){console.error('[TRIAL] email error:', emailErr);}
-        console.log('[TRIAL] Step 4 done');
 
         // Step 5: Reload context and render
-        console.log('[TRIAL] Step 5: Loading tenant context...');
         await loadTenantContext();
         if(currentTenant && currentTenant.is_active) await loadData();
-        console.log('[TRIAL] All done! Rendering dashboard...');
         render();
       } catch(err) {
         console.error('[TRIAL] UNEXPECTED ERROR:', err);
@@ -1503,7 +1493,7 @@ async function bindAccountantDash() {
     const nicknames = JSON.parse(localStorage.getItem('tazrim_acct_nicknames')||'{}');
     const nick = nicknames[t.id]||'';
     html+=`<div class="acct-card glass" data-tid="${t.id}" style="${expired?'opacity:.5':''}">
-      <div class="acct-client">${t.company_name||t.owner_email}</div>
+      <div class="acct-client">${esc(t.company_name||t.owner_email)}</div>
       ${nick?`<div class="acct-nickname">${nick}</div>`:''}
       <div class="acct-balance ${bal<0?'bal-neg':''}">${fmt(bal)}</div>
       ${zd?`<div class="acct-zero" style="color:var(--red)">כניסה למינוס: ${fmtDate(zd)}</div>`:`<div class="acct-zero" style="color:var(--green)">תקין</div>`}
@@ -1647,7 +1637,7 @@ function renderSettings() {
         <div>
           <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">משתמשים מורשים (${tenantUsers.length}/${maxUsers})</div>
           ${tenantUsers.map(u=>`<div class="user-row">
-            <div><div class="user-email">${u.email}</div><div class="user-role">${u.role==='owner'?'בעלים':u.role==='accountant'?'הנהלת חשבונות':'משתמש'}</div></div>
+            <div><div class="user-email">${esc(u.email)}</div><div class="user-role">${u.role==='owner'?'בעלים':u.role==='accountant'?'הנהלת חשבונות':'משתמש'}</div></div>
             ${u.role!=='owner' && userRole==='owner'?`<button class="btn-remove-user" data-uid="${u.id}">הסר</button>`:''}
           </div>`).join('')}
           ${tenantUsers.length<maxUsers && userRole==='owner'?`
@@ -1673,7 +1663,7 @@ function bindSettings() {
   });
   document.querySelectorAll('.btn-remove-user').forEach(el=>el.addEventListener('click',async()=>{
     if(!confirm('להסיר משתמש זה?')) return;
-    await dbAdmin.from('tenant_users').update({is_active:false}).eq('id',el.dataset.uid);
+    await dbAdmin.from('tenant_users').update({is_active:false}).eq('id',el.dataset.uid).eq('tenant_id', currentTenant.id);
     await loadTenantUsers(); render();
   }));
   document.getElementById('btn-add-user')?.addEventListener('click',async()=>{
@@ -1794,22 +1784,17 @@ async function loadData() {
 
 // ─── INIT ─────────────────────────────────────────────
 async function init() {
-  console.log('[INIT] Starting...');
   try {
     const {data:{session:s}} = await db.auth.getSession();
     session = s;
-    console.log('[INIT] Session:', s ? s.user.email : 'none');
     if(s){
       await loadTenantContext();
-      console.log('[INIT] Tenant:', currentTenant ? currentTenant.id : 'none', 'Role:', userRole);
       if(currentTenant && currentTenant.is_active) await loadData();
     }
   } catch(e){ console.error('[INIT] getSession error',e); }
-  console.log('[INIT] Calling render...');
   render();
 
   db.auth.onAuthStateChange(async(event, sess)=>{
-    console.log('[AUTH]', event);
     if(event==='SIGNED_IN'){
       session=sess;
       await loadTenantContext();
