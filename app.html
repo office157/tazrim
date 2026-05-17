@@ -1160,9 +1160,9 @@ function openBankEditModal(bank){
         <button id="bank-modal-close" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">✕</button>
       </div>
       <label class="modal-label" style="margin-top:8px">יתרה נוכחית (₪)</label>
-      <input class="modal-input" id="bm-balance" type="number" value="${info.balance}" style="font-size:28px;font-weight:700;text-align:center;padding:18px;color:var(--teal);border:2px solid rgba(0,174,204,.3)"/>
+      <input class="modal-input" id="bm-balance" type="number" value="${parseFloat(info.balance)||0}" style="font-size:28px;font-weight:700;text-align:center;padding:18px;color:var(--teal);border:2px solid rgba(0,174,204,.3)"/>
       <label class="modal-label">כינוי החשבון *</label>
-      <input class="modal-input" id="bm-name" value="${info.name}"/>
+      <input class="modal-input" id="bm-name" value="${esc(info.name)}"/>
       <label class="modal-label">בנק *</label>
       <select class="modal-input" id="bm-bank">
         <option value="">בחרו בנק...</option>
@@ -1171,11 +1171,11 @@ function openBankEditModal(bank){
       <div class="modal-row">
         <div>
           <label class="modal-label">מספר סניף</label>
-          <input class="modal-input" id="bm-branch" value="${info.branch}" maxlength="5"/>
+          <input class="modal-input" id="bm-branch" value="${esc(info.branch)}" maxlength="5"/>
         </div>
         <div>
           <label class="modal-label">מספר חשבון</label>
-          <input class="modal-input" id="bm-account" value="${info.account}" maxlength="10"/>
+          <input class="modal-input" id="bm-account" value="${esc(info.account)}" maxlength="10"/>
         </div>
       </div>
       <div id="bm-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#FCA5A5;border-radius:12px;padding:10px 14px;font-size:13px;text-align:center;margin-top:12px"></div>
