@@ -48,6 +48,13 @@ body{background:var(--bg);color:var(--text);min-height:100vh;transition:backgrou
 .stat-card{border-radius:16px;padding:20px;text-align:center}
 .stat-num{font-size:32px;font-weight:700}
 .stat-label{font-size:13px;color:var(--text-dim);margin-top:4px}
+/* Plan filter cards */
+.plan-cards{display:flex;gap:12px;padding:0 28px 16px;flex-wrap:wrap}
+.plan-card{border-radius:14px;padding:14px 20px;text-align:center;cursor:pointer;transition:all .2s;min-width:100px;flex:1;max-width:200px}
+.plan-card:hover{transform:translateY(-2px)}
+.plan-card.active-filter{outline:2px solid var(--teal);outline-offset:2px}
+.plan-card .plan-count{font-size:28px;font-weight:700}
+.plan-card .plan-label{font-size:12px;color:var(--text-dim);margin-top:2px}
 /* Tabs */
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 28px}
 .tab-btn{padding:14px 20px;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:600;border-bottom:2px solid transparent;transition:all .2s}
@@ -98,7 +105,7 @@ const ADMIN_EMAIL = 'office@tactigo.co.il';
 const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
 const esc=(s)=>{if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
 
-let session=null, tenants=[], payments=[], activeTab='clients', modalData=null;
+let session=null, tenants=[], payments=[], activeTab='clients', modalData=null, planFilter=null;
 
 const fmt = n => new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(n);
 const fmtDate = s => { if(!s) return '—'; const d=new Date(s); return d.toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'}); };
@@ -142,6 +149,8 @@ function renderDashboard() {
   const inactive = tenants.filter(t=>!t.is_active);
   const proCount = tenants.filter(t=>t.plan==='pro').length;
   const trialCount = tenants.filter(t=>isTrialAccount(t)||isFreeAccount(t)).length;
+  const starterCount = tenants.filter(t=>t.plan==='starter'&&!isTrialAccount(t)&&!isFreeAccount(t)).length;
+  const accountantCount = tenants.filter(t=>t.plan==='accountant').length;
   const totalRevenue = payments.reduce((s,p)=>s+(p.status==='completed'?parseFloat(p.amount):0),0);
 
   // Tenants expiring within 30 days
@@ -171,6 +180,13 @@ function renderDashboard() {
     ${soon.length?`<div class="stat-card glass anim-up"><div class="stat-num" style="color:var(--orange)">${soon.length}</div><div class="stat-label">פג תוקף ב-30 יום</div></div>`:''}
   </div>
 
+  <div class="plan-cards">
+    <div class="plan-card glass ${planFilter==='trial'?'active-filter':''}" data-plan="trial"><div class="plan-count" style="color:var(--text-mid)">${trialCount}</div><div class="plan-label">ניסיון</div></div>
+    <div class="plan-card glass ${planFilter==='starter'?'active-filter':''}" data-plan="starter"><div class="plan-count" style="color:var(--green)">${starterCount}</div><div class="plan-label">סטארטר</div></div>
+    <div class="plan-card glass ${planFilter==='pro'?'active-filter':''}" data-plan="pro"><div class="plan-count" style="color:var(--orange)">${proCount}</div><div class="plan-label">PRO</div></div>
+    <div class="plan-card glass ${planFilter==='accountant'?'active-filter':''}" data-plan="accountant"><div class="plan-count" style="color:var(--teal)">${accountantCount}</div><div class="plan-label">חשבונאים</div></div>
+  </div>
+
   <div class="tabs">
     <button class="tab-btn ${activeTab==='clients'?'active':''}" data-tab="clients">לקוחות</button>
     <button class="tab-btn ${activeTab==='accountants'?'active':''}" data-tab="accountants">חשבונאים</button>
@@ -197,12 +213,68 @@ function renderDashboard() {
 
   ${modalData ? renderModal() : ''}`;
 }
+function refreshContent() {
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab===activeTab);
+  });
+  // Update action bar
+  const ab = document.querySelector('.action-bar');
+  if(ab){
+    ab.innerHTML = activeTab==='clients'?`
+      <button class="btn-action" id="btn-add-client">+ הוספת לקוח</button>
+      <button class="btn-action" id="btn-send-expiry">📧 שלח התראות תוקף</button>
+    ` : activeTab==='accountants'?`
+      <button class="btn-action" id="btn-add-accountant">+ הוספת חשבונאי</button>
+    ` : '';
+  }
+  // Update content
+  const ct = document.querySelector('.content');
+  if(ct){
+    ct.innerHTML = activeTab==='clients' ? renderClientsTable() :
+                   activeTab==='accountants' ? renderAccountantsTab() :
+                   activeTab==='payments' ? renderPaymentsTable() :
+                   activeTab==='emails' ? renderEmailsTab() : '';
+  }
+  // Re-bind content-specific listeners
+  bindContentListeners();
+}
+
+function bindContentListeners() {
+  // Add client
+  document.getElementById('btn-add-client')?.addEventListener('click',()=>{modalData={type:'add-client'};render();});
+  // Add accountant
+  document.getElementById('btn-add-accountant')?.addEventListener('click',()=>{modalData={type:'add-accountant'};render();});
+  // Edit client
+  document.querySelectorAll('.btn-edit-client').forEach(b=>b.addEventListener('click',()=>{
+    const t=tenants.find(x=>x.id===b.dataset.id);
+    if(t) {modalData={type:'edit-client',tenant:t};render();}
+  }));
+  // Toggle client active/inactive
+  document.querySelectorAll('.btn-toggle-client').forEach(b=>b.addEventListener('click', async()=>{
+    const t=tenants.find(x=>x.id===b.dataset.id);
+    if(!t) return;
+    await dbAdmin.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
+    await loadTenants(); render();
+  }));
+  // Send expiry
+  document.getElementById('btn-send-expiry')?.addEventListener('click', sendExpiryEmails);
+}
+
 
 function renderClientsTable() {
-  if(!tenants.length) return '<div style="text-align:center;padding:40px;color:var(--text-dim)">אין לקוחות</div>';
+  let list = tenants;
+  if(planFilter){
+    list = tenants.filter(t=>{
+      if(planFilter==='trial') return isTrialAccount(t)||isFreeAccount(t);
+      if(planFilter==='starter') return t.plan==='starter'&&!isTrialAccount(t)&&!isFreeAccount(t);
+      return t.plan===planFilter;
+    });
+  }
+  if(!list.length) return '<div style="text-align:center;padding:40px;color:var(--text-dim)">'+(planFilter?'אין לקוחות במסלול זה':'אין לקוחות')+'</div>';
   return `<table class="admin-table">
     <tr><th>לקוח</th><th>מסלול</th><th>מחזור</th><th>סטטוס</th><th>תוקף</th><th>נוצר</th><th>פעולות</th></tr>
-    ${tenants.map(t=>`<tr>
+    ${list.map(t=>`<tr>
       <td><strong>${esc(t.company_name)||'—'}</strong><br><span style="font-size:12px;color:var(--text-dim)">${esc(t.owner_email)}</span></td>
       <td><span class="badge badge-${isFreeAccount(t)?'free':isTrialAccount(t)?'trial':t.plan}">${isFreeAccount(t)?'חינמי':isTrialAccount(t)?'TRIAL':t.plan.toUpperCase()}</span></td>
       <td>${isTrialAccount(t)?'ניסיון':isFreeAccount(t)?'חינמי':t.billing_cycle==='yearly'?'שנתי':'חודשי'}</td>
@@ -343,11 +415,21 @@ function bindDashboard() {
   const saved=localStorage.getItem('tazrim_theme');
   if(saved){document.documentElement.setAttribute('data-theme',saved);const b=document.getElementById('theme-toggle');if(b)b.textContent=saved==='light'?'☀️':'🌙';updateAdminLogos(saved);}
 
-  // Tabs
+  // Tabs — partial update, no flicker
   document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
-    activeTab=b.dataset.tab; render();
+    activeTab=b.dataset.tab;
+    refreshContent();
     if(activeTab==='emails') loadEmails();
     if(activeTab==='accountants') loadAccountants();
+  }));
+
+  // Plan filter cards
+  document.querySelectorAll('.plan-card').forEach(card=>card.addEventListener('click',()=>{
+    const p = card.dataset.plan;
+    planFilter = (planFilter===p) ? null : p;
+    document.querySelectorAll('.plan-card').forEach(c2=>c2.classList.toggle('active-filter', c2.dataset.plan===planFilter));
+    if(activeTab!=='clients'){ activeTab='clients'; document.querySelectorAll('.tab-btn').forEach(b2=>b2.classList.toggle('active', b2.dataset.tab==='clients')); }
+    refreshContent();
   }));
 
   // Add client
