@@ -8,6 +8,7 @@
 <meta name="description" content="תזרים — ניהול תזרים מזומנים | Tactigo"/>
 <title>תזרים | Tactigo</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 @font-face {
   font-family:'FbEinstein';
@@ -54,6 +55,26 @@ select option{background:#fff;color:#111}
 .header-actions{display:flex;align-items:center;gap:10px}
 .btn-add{display:flex;align-items:center;gap:6px;background:var(--teal);color:#07112B;font-weight:700;font-size:13px;padding:10px 18px;border:none;border-radius:12px;cursor:pointer;box-shadow:0 0 18px rgba(0,174,204,.28);transition:all .2s}
 .btn-add:hover{background:#00C8EB;box-shadow:0 0 28px rgba(0,174,204,.45)}
+.btn-import{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--teal);color:var(--teal);font-weight:600;font-size:13px;padding:9px 16px;border-radius:12px;cursor:pointer;transition:all .2s}
+.btn-import:hover{background:rgba(0,174,204,.1)}
+/* Import Modal */
+.import-zone{border:2px dashed var(--border);border-radius:16px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px}
+.import-zone:hover,.import-zone.drag-over{border-color:var(--teal);background:rgba(0,174,204,.06)}
+.import-zone-text{color:var(--text-dim);font-size:14px;line-height:1.8}
+.import-zone-text strong{color:var(--teal)}
+.import-preview{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;margin-bottom:12px}
+.import-table{width:100%;border-collapse:collapse;font-size:13px}
+.import-table th{padding:8px 10px;text-align:right;font-size:11px;color:var(--text-dim);background:rgba(0,174,204,.06);position:sticky;top:0;z-index:1}
+.import-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.03)}
+.import-table tr.row-error td{background:rgba(239,68,68,.08);color:var(--red)}
+.import-table tr.row-ok td{color:var(--text)}
+.import-stats{display:flex;gap:16px;justify-content:center;margin-bottom:14px;font-size:14px}
+.import-stats .stat-ok{color:var(--green);font-weight:600}
+.import-stats .stat-err{color:var(--red);font-weight:600}
+.import-default-bank{margin-bottom:14px}
+.import-default-bank label{font-size:13px;color:var(--text-dim);margin-left:8px}
+.import-default-bank select{background:var(--input-bg);border:1px solid var(--border);border-radius:10px;padding:7px 12px;color:var(--text);font-size:13px;outline:none}
+
 .btn-logout{background:transparent;border:none;color:rgba(255,255,255,.3);font-size:13px;cursor:pointer;transition:color .2s;padding:8px 12px}
 .btn-logout:hover{color:rgba(255,255,255,.7)}
 /* ===== MAIN ===== */
@@ -402,6 +423,7 @@ let session=null, balance=0, transactions=[], editingBalance=false;
 let currentTenant=null, tenantBanks=[], userRole=null, tenantUsers=[];
 let settingsOpen=false, upgradeModalOpen=false, onboardPlan='starter', onboardCycle='monthly';
 let modalOpen=false, modalType='expense', modalRecurring=false;
+let importModalOpen=false, importRows=[], importErrors=[];
 let selectedTxId=null, notifTimer=null;
 let confirmModal=null; // { type:'delete'|'complete', id, name, amount?, txType? }
 let searchQuery='';
@@ -488,6 +510,7 @@ function render() {
     <div class="header-actions">
       ${userRole==='accountant'?`<button class="btn-add" id="btn-back-acct" style="background:transparent;border:1px solid var(--teal);color:var(--teal);box-shadow:none">← חזרה לדשבורד</button>`:''}
       <button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>
+      ${currentTenant?.plan==='pro'?'<button class="btn-import" id="btn-open-import">📥 ייבוא מאקסל</button>':''}
       <button class="btn-settings" id="btn-settings" title="הגדרות">⚙</button>
       <button class="theme-toggle" id="theme-toggle" title="מצב בהיר/כהה">🌙</button>
       <button class="btn-logout" id="btn-logout">יציאה</button>
@@ -520,6 +543,7 @@ function render() {
   ${settingsOpen ? renderSettings() : ''}
   ${upgradeModalOpen ? renderUpgradeModal() : ''}
   ${confirmModal ? renderConfirmModal() : ''}
+  ${importModalOpen ? renderImportModal() : ''}
   `;
   bindDashboard(future, completed, zeroDate);
 }
@@ -827,6 +851,7 @@ function bindDashboard(future, completed, zeroDate) {
   });
 
   document.getElementById('btn-open-add').addEventListener('click',()=>{ modalOpen=true; render(); });
+  document.getElementById('btn-open-import')?.addEventListener('click',()=>{ importModalOpen=true; importRows=[]; render(); });
 
   // Balance card
   document.getElementById('bal-card')?.addEventListener('click',()=>{ editingBalance=true; render(); setTimeout(()=>document.getElementById('bal-input')?.focus(),50); });
@@ -877,6 +902,7 @@ function bindDashboard(future, completed, zeroDate) {
 
   // Modal
   if(modalOpen) bindModal(zeroDate);
+  if(importModalOpen) bindImportModal();
 
   // Confirm modal
   bindConfirmModal();
@@ -1609,6 +1635,237 @@ async function bindAccountantDash() {
     await loadTenantUsers();
     await loadData(); render();
   }));
+}
+
+
+
+// ─── EXCEL IMPORT (PRO ONLY) ────────────────────────
+function renderImportModal() {
+  const validRows = importRows.filter(r=>!r._error);
+  const errorRows = importRows.filter(r=>r._error);
+  return `<div class="overlay" id="import-overlay">
+    <div class="modal glass anim-fade" style="max-width:720px;width:95%">
+      <div class="modal-body" style="gap:12px">
+        <div style="text-align:center;font-weight:700;font-size:17px">📥 ייבוא תנועות מאקסל</div>
+        ${importRows.length===0 ? `
+          <div class="import-zone" id="import-drop-zone">
+            <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv" style="display:none"/>
+            <div class="import-zone-text">
+              גררו קובץ לכאן או <strong>לחצו לבחירת קובץ</strong><br/>
+              <span style="font-size:12px">xlsx, xls, csv — עד 500 שורות</span>
+            </div>
+          </div>
+          <div style="text-align:center;font-size:12px;color:var(--text-dim);line-height:1.8">
+            <strong>עמודות נדרשות:</strong> תיאור, סכום, תאריך, סוג (הכנסה/הוצאה), בנק<br/>
+            עמודה אופציונלית: ספק<br/>
+            <a href="import-template.xlsx" download style="color:var(--teal);text-decoration:underline;font-weight:600">📄 הורדת קובץ תבנית</a>
+          </div>
+        ` : `
+          <div class="import-stats">
+            <span class="stat-ok">✓ ${validRows.length} תקינות</span>
+            ${errorRows.length?`<span class="stat-err">✗ ${errorRows.length} שגיאות</span>`:''}
+            <span style="color:var(--text-dim)">סה"כ ${importRows.length} שורות</span>
+          </div>
+          <div class="import-preview">
+            <table class="import-table">
+              <tr><th>#</th><th>תיאור</th><th>ספק</th><th>סכום</th><th>תאריך</th><th>סוג</th><th>בנק</th><th>סטטוס</th></tr>
+              ${importRows.map((r,i)=>`<tr class="${r._error?'row-error':'row-ok'}">
+                <td>${i+1}</td>
+                <td>${esc(r.description||'')}</td>
+                <td>${esc(r.vendor||'')}</td>
+                <td>${r.amount||''}</td>
+                <td>${r.date||''}</td>
+                <td>${r.type==='income'?'הכנסה':r.type==='expense'?'הוצאה':(r._rawType||'?')}</td>
+                <td>${esc(r._bankName||'')}</td>
+                <td style="font-size:11px">${r._error?'❌ '+esc(r._error):'✓'}</td>
+              </tr>`).join('')}
+            </table>
+          </div>
+        `}
+        <div class="modal-actions" style="margin-top:4px">
+          <button class="btn-modal-cancel" id="import-cancel">ביטול</button>
+          ${importRows.length>0?`
+            <button class="btn-modal-cancel" id="import-reset" style="color:var(--orange);border-color:var(--orange)">בחר קובץ אחר</button>
+            ${validRows.length>0?`<button class="btn-modal-confirm" id="import-confirm" style="background:var(--teal);color:#07112B">ייבא ${validRows.length} תנועות</button>`:''}
+          `:''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function parseExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, {defval:''});
+        if(!json.length){ reject('הקובץ ריק'); return; }
+        if(json.length>500){ reject('מקסימום 500 שורות (נמצאו '+json.length+')'); return; }
+
+        // Map column names (Hebrew + English)
+        const colMap = {};
+        const headers = Object.keys(json[0]);
+        for(const h of headers){
+          const lh = h.trim().toLowerCase();
+          if(['תיאור','description','desc'].includes(lh)) colMap.description=h;
+          else if(['סכום','amount','sum'].includes(lh)) colMap.amount=h;
+          else if(['תאריך','date'].includes(lh)) colMap.date=h;
+          else if(['סוג','type','kind'].includes(lh)) colMap.type=h;
+          else if(['ספק','vendor','supplier'].includes(lh)) colMap.vendor=h;
+          else if(['בנק','bank','חשבון'].includes(lh)) colMap.bank=h;
+        }
+
+        if(!colMap.description||!colMap.amount||!colMap.date||!colMap.type||!colMap.bank){
+          const missing=[];
+          if(!colMap.description) missing.push('תיאור');
+          if(!colMap.amount) missing.push('סכום');
+          if(!colMap.date) missing.push('תאריך');
+          if(!colMap.type) missing.push('סוג');
+          if(!colMap.bank) missing.push('בנק');
+          reject('עמודות חסרות: '+missing.join(', '));
+          return;
+        }
+
+        // Build bank name → id lookup
+        const bankLookup = {};
+        tenantBanks.forEach(b=>{
+          bankLookup[b.bank_name.trim().toLowerCase()] = b.id;
+          // Also try display name
+          const dn = bankDisplayName(b).trim().toLowerCase();
+          bankLookup[dn] = b.id;
+        });
+
+        const rows = json.map(row=>{
+          const r = {};
+          r.description = String(row[colMap.description]||'').trim();
+          r.vendor = colMap.vendor ? String(row[colMap.vendor]||'').trim() : '';
+          r._rawType = String(row[colMap.type]||'').trim();
+          r._bankName = colMap.bank ? String(row[colMap.bank]||'').trim() : '';
+
+          // Parse amount
+          let amt = row[colMap.amount];
+          if(typeof amt==='string') amt = parseFloat(amt.replace(/[^0-9.\-]/g,''));
+          r.amount = parseFloat(amt);
+
+          // Parse type
+          const rawType = r._rawType.toLowerCase();
+          if(['הכנסה','income','in','+'].includes(rawType)) r.type='income';
+          else if(['הוצאה','expense','out','-'].includes(rawType)) r.type='expense';
+          else r.type='';
+
+          // Parse date
+          let dateVal = row[colMap.date];
+          if(dateVal instanceof Date){
+            r.date = dateVal.toISOString().split('T')[0];
+          } else {
+            const ds = String(dateVal).trim();
+            // Try dd/mm/yyyy
+            const ddmm = ds.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+            if(ddmm) r.date = ddmm[3]+'-'+ddmm[2].padStart(2,'0')+'-'+ddmm[1].padStart(2,'0');
+            // Try yyyy-mm-dd
+            else if(/^\d{4}-\d{2}-\d{2}$/.test(ds)) r.date = ds;
+            else r.date = '';
+          }
+
+          // Resolve bank
+          const bankKey = r._bankName.toLowerCase();
+          r.bank_id = bankLookup[bankKey] || null;
+
+          // Validate
+          if(!r.description) r._error='תיאור חסר';
+          else if(!r.amount||isNaN(r.amount)||r.amount<=0) r._error='סכום לא תקין';
+          else if(!r.date||!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) r._error='תאריך לא תקין';
+          else if(!r.type) r._error='סוג לא תקין (הכנסה/הוצאה)';
+          else if(!r.bank_id) r._error='בנק לא נמצא: '+r._bankName;
+          else r._error=null;
+
+          return r;
+        });
+
+        resolve(rows);
+      } catch(ex){ reject('שגיאה בקריאת הקובץ: '+ex.message); }
+    };
+    reader.onerror = ()=> reject('שגיאה בקריאת הקובץ');
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function importTransactions(rows) {
+  const valid = rows.filter(r=>!r._error);
+  if(!valid.length) return;
+  const tid = currentTenant.id;
+  // Batch insert in chunks of 100
+  for(let i=0; i<valid.length; i+=100){
+    const batch = valid.slice(i, i+100).map(r=>({
+      description: r.description,
+      vendor: r.vendor||null,
+      amount: r.amount,
+      date: r.date,
+      type: r.type,
+      is_recurring: false,
+      tenant_id: tid,
+      bank_id: r.bank_id
+    }));
+    await dbAdmin.from('transactions').insert(batch);
+  }
+  await loadData();
+}
+
+function bindImportModal() {
+  document.getElementById('import-overlay')?.addEventListener('click',e=>{
+    if(e.target.id==='import-overlay'){importModalOpen=false;importRows=[];render();}
+  });
+  document.getElementById('import-cancel')?.addEventListener('click',()=>{importModalOpen=false;importRows=[];render();});
+  document.getElementById('import-reset')?.addEventListener('click',()=>{importRows=[];render();});
+
+  // File drop zone
+  const zone = document.getElementById('import-drop-zone');
+  const fileInput = document.getElementById('import-file-input');
+  if(zone){
+    zone.addEventListener('click',()=>fileInput.click());
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag-over');});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
+    zone.addEventListener('drop',async e=>{
+      e.preventDefault();zone.classList.remove('drag-over');
+      const f=e.dataTransfer.files[0];
+      if(f) await handleImportFile(f);
+    });
+    fileInput?.addEventListener('change',async e=>{
+      const f=e.target.files[0];
+      if(f) await handleImportFile(f);
+    });
+  }
+
+  // Confirm import
+  document.getElementById('import-confirm')?.addEventListener('click', async()=>{
+    const btn=document.getElementById('import-confirm');
+    btn.disabled=true; btn.textContent='מייבא...';
+    try{
+      await importTransactions(importRows);
+      importModalOpen=false; importRows=[];
+      render();
+      showNotification('התנועות יובאו בהצלחה ✓');
+    }catch(ex){
+      btn.disabled=false; btn.textContent='שגיאה — נסה שוב';
+    }
+  });
+}
+
+async function handleImportFile(file) {
+  const zone = document.getElementById('import-drop-zone');
+  if(zone) zone.innerHTML='<div style="color:var(--teal)">טוען קובץ...</div>';
+  try{
+    importRows = await parseExcelFile(file);
+    render();
+  }catch(err){
+    importRows=[];
+    if(zone) zone.innerHTML='<div style="color:var(--red)">'+esc(String(err))+'</div><div style="margin-top:8px;font-size:12px;color:var(--text-dim)">לחצו לנסות שוב</div>';
+    setTimeout(()=>{render();},2500);
+  }
 }
 
 // ─── SETTINGS PANEL ──────────────────────────────
