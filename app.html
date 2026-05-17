@@ -362,8 +362,9 @@ select option{background:#fff;color:#111}
 [data-theme="light"] ::-webkit-scrollbar-track{background:var(--bg)}
 
 /* ===== PAGINATION ===== */
-.search-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.date-filter-wrap{max-width:220px}
+.search-filters{display:flex;gap:10px;align-items:center;flex-wrap:nowrap}
+.search-filters>.search-wrap{flex:7;min-width:0}
+.search-filters>.date-filter-wrap{flex:3;min-width:0;max-width:none}
 .date-input{font-family:inherit;color:var(--text);background:transparent;border:none;outline:none;font-size:14px;width:100%}
 .date-input::-webkit-calendar-picker-indicator{filter:invert(.7);cursor:pointer}
 [data-theme="light"] .date-input::-webkit-calendar-picker-indicator{filter:none}
