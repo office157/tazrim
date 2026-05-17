@@ -1557,9 +1557,15 @@ async function bindAccountantDash() {
 
   let html='';
   for(const t of tenants){
-    const {data:sets} = await dbAdmin.from('settings').select('*').eq('tenant_id',t.id).single();
-    const bal = parseFloat(sets?.current_balance||0);
-    const {data:txs} = await dbAdmin.from('transactions').select('*').eq('tenant_id',t.id);
+    const [{data:sets},{data:txs},{data:banks}] = await Promise.all([
+      dbAdmin.from('settings').select('*').eq('tenant_id',t.id).single(),
+      dbAdmin.from('transactions').select('*').eq('tenant_id',t.id),
+      dbAdmin.from('tenant_banks').select('*').eq('tenant_id',t.id)
+    ]);
+    // For multi-bank (PRO) tenants, balance = sum of bank balances; otherwise settings.current_balance
+    const bal = (banks && banks.length > 0)
+      ? banks.reduce((s,b) => s + parseFloat(b.balance||0), 0)
+      : parseFloat(sets?.current_balance||0);
     const zd = calcZeroDate(txs||[], bal);
     const expired = t.plan_expires_at && new Date(t.plan_expires_at)<new Date();
     const nicknames = JSON.parse(localStorage.getItem('tazrim_acct_nicknames')||'{}');
