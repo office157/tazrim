@@ -360,6 +360,15 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .cycle-btn{color:rgba(0,0,0,.4);border-color:var(--border)}
 [data-theme="light"] .cycle-btn.active{color:var(--teal)}
 [data-theme="light"] ::-webkit-scrollbar-track{background:var(--bg)}
+
+/* ===== PAGINATION ===== */
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;border-top:1px solid rgba(255,255,255,.05)}
+.pagination button{background:rgba(0,174,204,.1);border:1px solid rgba(0,174,204,.25);color:var(--teal);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.pagination button:hover{background:rgba(0,174,204,.2)}
+.pagination button:disabled{opacity:.3;cursor:not-allowed}
+.pagination .page-info{font-size:13px;color:var(--text-dim,rgba(255,255,255,.35));min-width:80px;text-align:center}
+[data-theme="light"] .pagination{border-top-color:rgba(0,0,0,.06)}
+[data-theme="light"] .pagination .page-info{color:var(--text-dim)}
 </style>
 </head>
 <body>
@@ -389,6 +398,8 @@ let modalOpen=false, modalType='expense', modalRecurring=false;
 let selectedTxId=null, notifTimer=null;
 let confirmModal=null; // { type:'delete'|'complete', id, name, amount?, txType? }
 let searchQuery='';
+let futurePage=1, completedPage=1;
+const PAGE_SIZE=100;
 
 // ─── HELPERS ─────────────────────────────────────────
 const fmt = n => new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(n);
@@ -531,6 +542,10 @@ function renderZeroCard(zeroDate) {
 
 // ─── TABLES ──────────────────────────────────────────
 function renderFutureTable(future) {
+  const totalPages = Math.ceil(future.length / PAGE_SIZE) || 1;
+  if(futurePage > totalPages) futurePage = totalPages;
+  const start = (futurePage-1)*PAGE_SIZE;
+  const pageItems = future.slice(start, start+PAGE_SIZE);
   return `<div class="table-card glass">
     <div class="table-header">
       <div class="table-title">📋 תנועות עתידיות</div>
@@ -543,7 +558,7 @@ function renderFutureTable(future) {
         <th></th><th>תיאור</th><th>ספק</th><th>סכום</th><th>תאריך</th><th>סוג</th>${tenantBanks.length>0?'<th>בנק</th><th>יתרה בחשבון</th>':''}<th>יתרה ${tenantBanks.length>0?'מאוחדת':'צפויה'}</th><th></th>
       </tr></thead>
       <tbody>
-      ${future.map(t=>`
+      ${pageItems.map(t=>`
         <tr class="tx-row${selectedTxId===t.id?' selected':''}" data-id="${t.id}">
           <td><button class="check-btn complete-btn" data-id="${t.id}" title="סמן כבוצע"></button></td>
           <td><span style="font-weight:600">${esc(t.description)}</span>${t.is_recurring?` <span class="badge badge-recurring">חוזרת</span>`:''}</td>
@@ -558,11 +573,21 @@ function renderFutureTable(future) {
         ${selectedTxId===t.id?`<tr class="edit-row" data-edit-id="${t.id}"><td colspan="${tenantBanks.length>0?'10':'8'}">${renderEditCard(t)}</td></tr>`:''}
       `).join('')}
       </tbody>
-    </table></div>`}
+    </table></div>
+    ${totalPages>1?`<div class="pagination">
+      <button class="pg-future-prev" ${futurePage<=1?'disabled':''}>← הקודם</button>
+      <span class="page-info">עמוד ${futurePage} מתוך ${totalPages}</span>
+      <button class="pg-future-next" ${futurePage>=totalPages?'disabled':''}>הבא →</button>
+    </div>`:''}
+    `}
   </div>`;
 }
 
 function renderCompletedTable(completed) {
+  const cTotalPages = Math.ceil(completed.length / PAGE_SIZE) || 1;
+  if(completedPage > cTotalPages) completedPage = cTotalPages;
+  const cStart = (completedPage-1)*PAGE_SIZE;
+  const cPageItems = completed.slice(cStart, cStart+PAGE_SIZE);
   return `<div class="table-card glass">
     <div class="table-header">
       <div class="table-title">✅ תנועות שבוצעו</div>
@@ -572,7 +597,7 @@ function renderCompletedTable(completed) {
     <table class="tbl">
       <thead><tr><th>תיאור</th><th>ספק</th><th>סכום</th><th>תאריך</th><th>סוג</th><th></th></tr></thead>
       <tbody>
-      ${completed.map(t=>`
+      ${cPageItems.map(t=>`
         <tr class="tx-row" data-id="${t.id}">
           <td style="opacity:.6">${esc(t.description)}</td>
           <td class="td-dim" style="font-size:13px">${esc(t.vendor)||'—'}</td>
@@ -584,6 +609,11 @@ function renderCompletedTable(completed) {
       `).join('')}
       </tbody>
     </table></div>
+    ${cTotalPages>1?`<div class="pagination">
+      <button class="pg-completed-prev" ${completedPage<=1?'disabled':''}>← הקודם</button>
+      <span class="page-info">עמוד ${completedPage} מתוך ${cTotalPages}</span>
+      <button class="pg-completed-next" ${completedPage>=cTotalPages?'disabled':''}>הבא →</button>
+    </div>`:''}
   </div>`;
 }
 
@@ -793,6 +823,7 @@ function bindDashboard(future, completed, zeroDate) {
   if(si){
     si.addEventListener('input', e=>{
       searchQuery = e.target.value;
+      futurePage=1; completedPage=1;
       document.getElementById('search-clear').style.visibility = searchQuery ? 'visible' : 'hidden';
       refreshTables();
       const ni = document.getElementById('search-input');
@@ -896,6 +927,11 @@ function bindTables() {
     });
   });
   bindEditCard();
+  // Pagination
+  document.querySelector('.pg-future-prev')?.addEventListener('click',()=>{ futurePage--; refreshTables(); });
+  document.querySelector('.pg-future-next')?.addEventListener('click',()=>{ futurePage++; refreshTables(); });
+  document.querySelector('.pg-completed-prev')?.addEventListener('click',()=>{ completedPage--; refreshTables(); });
+  document.querySelector('.pg-completed-next')?.addEventListener('click',()=>{ completedPage++; refreshTables(); });
 }
 
 function bindConfirmModal() {
