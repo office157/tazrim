@@ -362,6 +362,11 @@ select option{background:#fff;color:#111}
 [data-theme="light"] ::-webkit-scrollbar-track{background:var(--bg)}
 
 /* ===== PAGINATION ===== */
+.search-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.date-filter-wrap{max-width:220px}
+.date-input{font-family:inherit;color:var(--text);background:transparent;border:none;outline:none;font-size:14px;width:100%}
+.date-input::-webkit-calendar-picker-indicator{filter:invert(.7);cursor:pointer}
+[data-theme="light"] .date-input::-webkit-calendar-picker-indicator{filter:none}
 .pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;border-top:1px solid rgba(255,255,255,.05)}
 .pagination button{background:rgba(0,174,204,.1);border:1px solid rgba(0,174,204,.25);color:var(--teal);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
 .pagination button:hover{background:rgba(0,174,204,.2)}
@@ -398,6 +403,7 @@ let modalOpen=false, modalType='expense', modalRecurring=false;
 let selectedTxId=null, notifTimer=null;
 let confirmModal=null; // { type:'delete'|'complete', id, name, amount?, txType? }
 let searchQuery='';
+let searchDateFrom='';
 let futurePage=1, completedPage=1;
 const PAGE_SIZE=100;
 
@@ -471,8 +477,9 @@ function render() {
   const future = futureWithBalance(transactions, balance);
   const completed = transactions.filter(t=>t.is_completed).sort((a,b)=>b.completed_at?.localeCompare(a.completed_at||'')||0);
   const zeroDate = calcZeroDate(transactions, balance);
-  const fFuture = searchQuery ? future.filter(t=>matchesSearch(t,searchQuery)) : future;
-  const fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : completed;
+  let fFuture = searchQuery ? future.filter(t=>matchesSearch(t,searchQuery)) : [...future];
+  let fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : [...completed];
+  if(searchDateFrom){ fFuture=fFuture.filter(t=>t.date>=searchDateFrom); fCompleted=fCompleted.filter(t=>t.date>=searchDateFrom); }
 
   app.innerHTML = `
   <div id="header" class="anim-up">
@@ -490,10 +497,17 @@ function render() {
     <div class="hero-grid">
       ${currentTenant?.plan==='pro' ? renderMultiBankCards() : renderBalanceCard(zeroDate)+renderZeroCard(zeroDate)}
     </div>
-    <div class="search-wrap glass">
-      <span class="search-icon">🔍</span>
-      <input class="search-input" id="search-input" placeholder="חיפוש לפי תיאור, ספק, סכום..." value="${searchQuery.replace(/"/g,'&quot;')}"/>
-      <button class="search-clear" id="search-clear" title="נקה חיפוש" style="visibility:${searchQuery?'visible':'hidden'}">✕</button>
+    <div class="search-filters">
+      <div class="search-wrap glass">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="search-input" placeholder="חיפוש לפי תיאור, ספק, סכום..." value="${searchQuery.replace(/"/g,'&quot;')}"/>
+        <button class="search-clear" id="search-clear" title="נקה חיפוש" style="visibility:${searchQuery?'visible':'hidden'}">✕</button>
+      </div>
+      <div class="search-wrap glass date-filter-wrap">
+        <span class="search-icon">📅</span>
+        <input type="date" class="search-input date-input" id="date-filter" value="${searchDateFrom}" title="סינון מתאריך והלאה"/>
+        <button class="search-clear" id="date-clear" title="נקה סינון תאריך" style="visibility:${searchDateFrom?'visible':'hidden'}">✕</button>
+      </div>
     </div>
     <div id="tables-section">
     ${renderFutureTable(fFuture)}
@@ -839,6 +853,24 @@ function bindDashboard(future, completed, zeroDate) {
     si2?.focus();
   });
 
+  // Date filter
+  const df = document.getElementById('date-filter');
+  if(df){
+    df.addEventListener('change', e=>{
+      searchDateFrom = e.target.value;
+      futurePage=1; completedPage=1;
+      document.getElementById('date-clear').style.visibility = searchDateFrom ? 'visible' : 'hidden';
+      refreshTables();
+    });
+  }
+  document.getElementById('date-clear')?.addEventListener('click',()=>{
+    searchDateFrom='';
+    const df2=document.getElementById('date-filter');
+    if(df2) df2.value='';
+    document.getElementById('date-clear').style.visibility='hidden';
+    refreshTables();
+  });
+
     bindTables();
 
   // Modal
@@ -890,8 +922,9 @@ function bindEditCard() {
 function refreshTables() {
   const future = futureWithBalance(transactions, balance);
   const completed = transactions.filter(t=>t.is_completed).sort((a,b)=>b.completed_at?.localeCompare(a.completed_at||'')||0);
-  const fFuture = searchQuery ? future.filter(t=>matchesSearch(t,searchQuery)) : future;
-  const fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : completed;
+  let fFuture = searchQuery ? future.filter(t=>matchesSearch(t,searchQuery)) : [...future];
+  let fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : [...completed];
+  if(searchDateFrom){ fFuture=fFuture.filter(t=>t.date>=searchDateFrom); fCompleted=fCompleted.filter(t=>t.date>=searchDateFrom); }
   const ts = document.getElementById('tables-section');
   if(ts){
     ts.innerHTML = renderFutureTable(fFuture) + (fCompleted.length ? renderCompletedTable(fCompleted) : '');
