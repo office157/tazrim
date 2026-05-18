@@ -417,6 +417,15 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .drill-close:hover{background:rgba(0,0,0,.06)}
 [data-theme="light"] .drill-list td{border-bottom-color:rgba(0,0,0,.04)}
 [data-theme="light"] .drill-list th{background:rgba(255,255,255,.97)}
+
+/* ─── ANALYTICS BANK FILTER ──────────────────── */
+.bank-filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.bank-filter-label{font-size:13px;color:var(--text-dim);margin-left:4px}
+.bank-filter-btn{padding:7px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:1px solid var(--border);background:transparent;color:var(--text-dim)}
+.bank-filter-btn:hover{background:rgba(255,255,255,.06);border-color:var(--teal)}
+.bank-filter-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
+[data-theme="light"] .bank-filter-btn:hover{background:rgba(0,174,204,.06)}
+[data-theme="light"] .bank-filter-btn.active{background:var(--teal);color:#fff}
 /* ─── ANALYTICS TAB ─────────────────────────────── */
 .app-tabs{display:flex;gap:0;margin:0 auto 10px;width:90%;max-width:none;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
 .app-tab{flex:1;text-align:center;padding:10px 0;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--text-dim);position:relative;border:none;background:transparent}
@@ -485,6 +494,7 @@ let futurePage=1, completedPage=1;
 const PAGE_SIZE=100;
 let activeView='dashboard';
 let analyticsDrillModal=null;
+let analyticsBankFilter=null;
 
 // ─── HELPERS ─────────────────────────────────────────
 const fmt = n => new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(n);
@@ -890,8 +900,17 @@ function bindDashboard(future, completed, zeroDate) {
       }
       if(v && v !== activeView){
         activeView = v;
+        analyticsBankFilter = null;
         render();
       }
+    });
+  });
+  // ── Analytics bank filter ──
+  document.querySelectorAll('.bank-filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const bid = btn.dataset.bankFilter;
+      analyticsBankFilter = bid || null;
+      render();
     });
   });
   // ── Analytics stat card drill-down ──
@@ -1210,10 +1229,16 @@ function getAnalyticsData(futureTxs) {
   // Only future, uncompleted, within 12 months
   let txs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
 
+  // Apply bank filter
+  if(analyticsBankFilter){
+    txs = txs.filter(t => t.bank_id === analyticsBankFilter);
+  }
 
 
-  // All txs unfiltered for stat cards
-  const allTxs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+
+  // All txs for stat cards (filtered by bank if active)
+  let allTxs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  if(analyticsBankFilter) allTxs = allTxs.filter(t => t.bank_id === analyticsBankFilter);
   const totalIncome = allTxs.filter(t=>t.type==='income').reduce((s,t)=>s+parseFloat(t.amount),0);
   const totalExpense = allTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount),0);
 
@@ -1234,10 +1259,17 @@ function getAnalyticsData(futureTxs) {
     }
   });
 
-  // Running balance per month (always use all txs for balance calc)
-  let runBal = tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : balance;
+  // Running balance per month (filtered by bank if active)
+  let runBal;
+  if(analyticsBankFilter){
+    const bank = tenantBanks.find(b=>b.id===analyticsBankFilter);
+    runBal = bank ? parseFloat(bank.balance||0) : 0;
+  } else {
+    runBal = tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : balance;
+  }
   const balanceByMonth = [];
-  const allForBalance = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  let allForBalance = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  if(analyticsBankFilter) allForBalance = allForBalance.filter(t => t.bank_id === analyticsBankFilter);
   for(const mo of months){
     const moTxs = allForBalance.filter(t=>t.date.slice(0,7)===mo.key);
     moTxs.forEach(t=>{
@@ -1246,7 +1278,7 @@ function getAnalyticsData(futureTxs) {
     balanceByMonth.push(runBal);
   }
 
-  // Vendor breakdown (expenses only, unfiltered)
+  // Vendor breakdown (expenses only, filtered by bank if active)
   const vendorMap = {};
   allTxs.filter(t=>t.type==='expense').forEach(t=>{
     const v = t.vendor || 'ללא ספק';
@@ -1300,9 +1332,14 @@ function renderAnalyticsView(futureTxs) {
         <div class="sc-sub">ב-12 חודשים קדימה</div>
       </div>
     </div>
+    ${tenantBanks.length>1 ? `<div class="bank-filter-bar">
+      <span class="bank-filter-label">🏦 סינון לפי חשבון:</span>
+      <button class="bank-filter-btn${!analyticsBankFilter?' active':''}" data-bank-filter="">הכל</button>
+      ${tenantBanks.map(b=>`<button class="bank-filter-btn${analyticsBankFilter===b.id?' active':''}" data-bank-filter="${b.id}">${esc(bankDisplayName(b))}</button>`).join('')}
+    </div>` : ''}
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="cc-title">📈 מגמת יתרה — 12 חודשים קדימה</div>
+        <div class="cc-title">📈 מגמת יתרה — 12 חודשים קדימה${analyticsBankFilter?' ('+esc(bankDisplayName(tenantBanks.find(b=>b.id===analyticsBankFilter)||{bank_name:''}))+')':''}</div>
         <canvas id="chart-balance" height="240"></canvas>
       </div>
     </div>
