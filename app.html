@@ -397,7 +397,43 @@ select option{background:#fff;color:#111}
 .pagination .page-info{font-size:13px;color:var(--text-dim,rgba(255,255,255,.35));min-width:80px;text-align:center}
 [data-theme="light"] .pagination{border-top-color:rgba(0,0,0,.06)}
 [data-theme="light"] .pagination .page-info{color:var(--text-dim)}
+
+/* ─── ANALYTICS TAB ─────────────────────────────── */
+.app-tabs{display:flex;gap:0;margin:0 auto 18px;max-width:800px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
+.app-tab{flex:1;text-align:center;padding:11px 0;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--text-dim);position:relative;border:none;background:transparent}
+.app-tab:not(:last-child){border-left:1px solid var(--border)}
+.app-tab:hover{background:rgba(255,255,255,.05)}
+.app-tab.active{background:var(--teal);color:#fff}
+.app-tab.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.app-tab .pro-badge{font-size:10px;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:8px;margin-right:4px;vertical-align:1px}
+[data-theme="light"] .app-tabs{border-color:rgba(0,0,0,.1);background:rgba(0,0,0,.02)}
+[data-theme="light"] .app-tab:hover{background:rgba(0,0,0,.04)}
+[data-theme="light"] .app-tab.active{background:var(--teal);color:#fff}
+[data-theme="light"] .app-tab .pro-badge{background:rgba(0,0,0,.08)}
+.analytics-wrap{max-width:860px;margin:0 auto}
+.stat-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@media(max-width:640px){.stat-cards{grid-template-columns:repeat(2,1fr)}}
+.stat-card{border-radius:14px;padding:16px 18px;cursor:pointer;transition:all .2s;border:2px solid transparent;background:rgba(255,255,255,.04);backdrop-filter:blur(8px);text-align:center}
+.stat-card:hover{background:rgba(255,255,255,.08)}
+.stat-card.active{border-color:var(--teal)}
+.stat-card .sc-label{font-size:12px;color:var(--text-dim);margin-bottom:6px}
+.stat-card .sc-value{font-size:22px;font-weight:700}
+.stat-card .sc-sub{font-size:11px;color:var(--text-dim);margin-top:4px}
+[data-theme="light"] .stat-card{background:rgba(0,0,0,.03)}
+[data-theme="light"] .stat-card:hover{background:rgba(0,0,0,.06)}
+.charts-grid{display:grid;gap:16px;margin-bottom:20px}
+.charts-row-2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+@media(max-width:640px){.charts-row-2{grid-template-columns:1fr}}
+.chart-card{border-radius:16px;padding:20px;background:rgba(255,255,255,.04);backdrop-filter:blur(8px);border:1px solid var(--border)}
+.chart-card .cc-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.chart-card canvas{width:100%!important;max-height:260px}
+[data-theme="light"] .chart-card{background:rgba(0,0,0,.02);border-color:rgba(0,0,0,.08)}
+.analytics-empty{text-align:center;padding:60px 20px;color:var(--text-dim)}
+.analytics-empty .ae-icon{font-size:48px;margin-bottom:12px}
+.analytics-empty .ae-title{font-size:18px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.analytics-empty .ae-sub{font-size:14px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -429,6 +465,8 @@ let searchQuery='';
 let searchDateFrom='';
 let futurePage=1, completedPage=1;
 const PAGE_SIZE=100;
+let activeView='dashboard';
+let analyticsFilter=null;
 
 // ─── HELPERS ─────────────────────────────────────────
 const fmt = n => new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',maximumFractionDigits:0}).format(n);
@@ -504,12 +542,13 @@ function render() {
   let fCompleted = searchQuery ? completed.filter(t=>matchesSearch(t,searchQuery)) : [...completed];
   if(searchDateFrom){ fFuture=fFuture.filter(t=>t.date>=searchDateFrom); fCompleted=fCompleted.filter(t=>t.date>=searchDateFrom); }
 
+  const isPro = currentTenant?.plan==='pro';
   app.innerHTML = `
   <div id="header" class="anim-up">
     <div class="header-actions">
       ${userRole==='accountant'?`<button class="btn-add" id="btn-back-acct" style="background:transparent;border:1px solid var(--teal);color:var(--teal);box-shadow:none">← חזרה לדשבורד</button>`:''}
-      <button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>
-      ${currentTenant?.plan==='pro'?'<button class="btn-import" id="btn-open-import">📥 ייבוא מאקסל</button>':''}
+      ${activeView==='dashboard'?`<button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>`:''}
+      ${activeView==='dashboard'&&isPro?'<button class="btn-import" id="btn-open-import">📥 ייבוא מאקסל</button>':''}
       <button class="btn-settings" id="btn-settings" title="הגדרות">⚙</button>
       <button class="theme-toggle" id="theme-toggle" title="מצב בהיר/כהה">🌙</button>
       <button class="btn-logout" id="btn-logout">יציאה</button>
@@ -517,9 +556,11 @@ function render() {
     <div class="header-logo"><img src="white-logo.png" alt="Tactigo"/></div>
   </div>
   ${renderTrialBanner()}
+  ${renderAppTabs(isPro)}
   <div id="main">
+  ${activeView==='analytics'&&isPro ? renderAnalyticsView(future) : `
     <div class="hero-grid">
-      ${currentTenant?.plan==='pro' ? renderMultiBankCards() : renderBalanceCard(zeroDate)+renderZeroCard(zeroDate)}
+      ${isPro ? renderMultiBankCards() : renderBalanceCard(zeroDate)+renderZeroCard(zeroDate)}
     </div>
     <div class="search-filters">
       <div class="search-wrap glass">
@@ -537,6 +578,7 @@ function render() {
     ${renderFutureTable(fFuture)}
     ${fCompleted.length ? renderCompletedTable(fCompleted) : ''}
     </div>
+  `}
   </div>
   ${modalOpen ? renderModal() : ''}
   ${settingsOpen ? renderSettings() : ''}
@@ -823,6 +865,27 @@ function showNotif(oldZeroDate, newZeroDate) {
 
 // ─── BIND DASHBOARD ──────────────────────────────────
 function bindDashboard(future, completed, zeroDate) {
+  // ── Tab navigation ──
+  document.querySelectorAll('.app-tab:not(.disabled)').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const v = btn.dataset.view;
+      if(v && v !== activeView){
+        activeView = v;
+        analyticsFilter = null;
+        render();
+      }
+    });
+  });
+  // ── Analytics stat card filter ──
+  document.querySelectorAll('.stat-card[data-filter]').forEach(card=>{
+    card.addEventListener('click',()=>{
+      const f = card.dataset.filter;
+      analyticsFilter = analyticsFilter === f ? null : f;
+      render();
+    });
+  });
+  // ── Init charts after DOM ready ──
+  if(activeView==='analytics') setTimeout(()=>initAnalyticsCharts(future),50);
   // Header
   document.getElementById('btn-logout').addEventListener('click',async()=>{await db.auth.signOut();window.location.href='login.html';});
   document.getElementById('btn-settings')?.addEventListener('click',()=>{settingsOpen=true;render();});
@@ -839,6 +902,7 @@ function bindDashboard(future, completed, zeroDate) {
 
   // Accountant back button
   document.getElementById('btn-back-acct')?.addEventListener('click',()=>{
+      activeView='dashboard'; analyticsFilter=null;
     currentTenant=null;
     userRole='accountant';
     render();
@@ -1108,6 +1172,237 @@ function bindModal(zeroDate) {
   });
 }
 
+
+
+// ─── APP TABS (DASHBOARD / ANALYTICS) ────────────
+function renderAppTabs(isPro) {
+  return `<div class="app-tabs anim-up">
+    <button class="app-tab${activeView==='dashboard'?' active':''}" data-view="dashboard">📋 תזרים</button>
+    <button class="app-tab${activeView==='analytics'?' active':''}${!isPro?' disabled':''}" data-view="analytics" ${!isPro?'title="למסלול PRO בלבד"':''}>📊 ניתוח${!isPro?' <span class="pro-badge">PRO</span>':''}</button>
+  </div>`;
+}
+
+// ─── ANALYTICS VIEW (PRO ONLY) ───────────────────
+function getAnalyticsData(futureTxs) {
+  const today = new Date();
+  const inMonths = new Date(today);
+  inMonths.setMonth(inMonths.getMonth() + 12);
+  const maxDate = inMonths.toISOString().slice(0,10);
+  const todayStr = today.toISOString().slice(0,10);
+
+  // Only future, uncompleted, within 12 months
+  let txs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+
+  // Apply filter
+  if(analyticsFilter === 'income') txs = txs.filter(t => t.type === 'income');
+  if(analyticsFilter === 'expense') txs = txs.filter(t => t.type === 'expense');
+
+  // All txs unfiltered for stat cards
+  const allTxs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  const totalIncome = allTxs.filter(t=>t.type==='income').reduce((s,t)=>s+parseFloat(t.amount),0);
+  const totalExpense = allTxs.filter(t=>t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount),0);
+
+  // Monthly aggregation for 12 months
+  const months = [];
+  for(let i=0; i<12; i++){
+    const d = new Date(today.getFullYear(), today.getMonth()+i, 1);
+    const key = d.toISOString().slice(0,7); // YYYY-MM
+    const label = d.toLocaleDateString('he-IL',{month:'short',year:'2-digit'});
+    months.push({key, label, income:0, expense:0});
+  }
+  txs.forEach(t => {
+    const mk = t.date.slice(0,7);
+    const m = months.find(m=>m.key===mk);
+    if(m){
+      if(t.type==='income') m.income += parseFloat(t.amount);
+      else m.expense += parseFloat(t.amount);
+    }
+  });
+
+  // Running balance per month (always use all txs for balance calc)
+  let runBal = tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : balance;
+  const balanceByMonth = [];
+  const allForBalance = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  for(const mo of months){
+    const moTxs = allForBalance.filter(t=>t.date.slice(0,7)===mo.key);
+    moTxs.forEach(t=>{
+      runBal += t.type==='income' ? parseFloat(t.amount) : -parseFloat(t.amount);
+    });
+    balanceByMonth.push(runBal);
+  }
+
+  // Vendor breakdown (expenses only, unfiltered)
+  const vendorMap = {};
+  allTxs.filter(t=>t.type==='expense').forEach(t=>{
+    const v = t.vendor || 'ללא ספק';
+    vendorMap[v] = (vendorMap[v]||0) + parseFloat(t.amount);
+  });
+  const vendorsSorted = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]);
+  const topVendors = vendorsSorted.slice(0,5);
+  const otherSum = vendorsSorted.slice(5).reduce((s,v)=>s+v[1],0);
+  if(otherSum>0) topVendors.push(['אחר', otherSum]);
+
+  return { txs, allTxs, totalIncome, totalExpense, months, balanceByMonth, topVendors, txCount: allTxs.length };
+}
+
+function renderAnalyticsView(futureTxs) {
+  const d = getAnalyticsData(futureTxs);
+  const projectedBal = (tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : balance) + d.totalIncome - d.totalExpense;
+
+  if(d.allTxs.length === 0){
+    return `<div class="analytics-wrap"><div class="analytics-empty anim-fade">
+      <div class="ae-icon">📊</div>
+      <div class="ae-title">אין עדיין תנועות עתידיות</div>
+      <div class="ae-sub">הוסף תנועות כדי לראות ניתוח וגרפים</div>
+    </div></div>`;
+  }
+
+  return `<div class="analytics-wrap anim-fade">
+    <div class="stat-cards">
+      <div class="stat-card${analyticsFilter==='income'?' active':''}" data-filter="income">
+        <div class="sc-label">📈 הכנסות צפויות</div>
+        <div class="sc-value" style="color:var(--green)">${fmt(d.totalIncome)}</div>
+        <div class="sc-sub">${d.allTxs.filter(t=>t.type==='income').length} תנועות</div>
+      </div>
+      <div class="stat-card${analyticsFilter==='expense'?' active':''}" data-filter="expense">
+        <div class="sc-label">📉 הוצאות צפויות</div>
+        <div class="sc-value" style="color:var(--orange)">${fmt(d.totalExpense)}</div>
+        <div class="sc-sub">${d.allTxs.filter(t=>t.type==='expense').length} תנועות</div>
+      </div>
+      <div class="stat-card" style="cursor:default">
+        <div class="sc-label">💰 יתרה צפויה</div>
+        <div class="sc-value" style="color:${projectedBal<0?'var(--red)':'var(--text)'}">${fmt(projectedBal)}</div>
+        <div class="sc-sub">בעוד 12 חודשים</div>
+      </div>
+      <div class="stat-card" style="cursor:default">
+        <div class="sc-label">📋 סה"כ תנועות</div>
+        <div class="sc-value">${d.txCount}</div>
+        <div class="sc-sub">ב-12 חודשים קדימה</div>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="cc-title">📈 מגמת יתרה — 12 חודשים קדימה</div>
+        <canvas id="chart-balance" height="240"></canvas>
+      </div>
+    </div>
+    <div class="charts-row-2">
+      <div class="chart-card">
+        <div class="cc-title">📊 הכנסות מול הוצאות</div>
+        <canvas id="chart-bars" height="240"></canvas>
+      </div>
+      <div class="chart-card"${analyticsFilter==='income'?' style="display:none"':''}>
+        <div class="cc-title">🥧 פילוח הוצאות לפי ספק</div>
+        <canvas id="chart-pie" height="240"></canvas>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initAnalyticsCharts(futureTxs) {
+  if(activeView !== 'analytics' || !currentTenant || currentTenant.plan !== 'pro') return;
+  const d = getAnalyticsData(futureTxs);
+  if(d.allTxs.length === 0) return;
+
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const gridColor = isLight ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.07)';
+  const labelColor = isLight ? '#666' : 'rgba(255,255,255,.5)';
+  const tooltipBg = isLight ? '#fff' : '#1a2744';
+  const tooltipText = isLight ? '#333' : '#fff';
+  const tooltipBorder = isLight ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.1)';
+
+  const commonScales = {
+    x:{grid:{display:false},ticks:{color:labelColor,font:{size:11}}},
+    y:{grid:{color:gridColor},ticks:{color:labelColor,font:{size:11},callback:v=>fmt(v)},beginAtZero:false}
+  };
+  const commonTooltip = {
+    backgroundColor:tooltipBg,titleColor:tooltipText,bodyColor:tooltipText,
+    borderColor:tooltipBorder,borderWidth:1,rtl:true,textDirection:'rtl',
+    callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y||ctx.parsed||0)}
+  };
+
+  // 1. Balance line chart
+  const balCtx = document.getElementById('chart-balance');
+  if(balCtx){
+    const negativePlugin = {
+      id:'negativeZone',
+      beforeDraw(chart){
+        const {ctx:c,chartArea:{top,bottom,left,right},scales:{y}} = chart;
+        const zeroY = y.getPixelForValue(0);
+        if(zeroY < top || zeroY > bottom) return;
+        c.save();
+        c.fillStyle = isLight ? 'rgba(239,68,68,.06)' : 'rgba(239,68,68,.08)';
+        c.fillRect(left, zeroY, right-left, bottom-zeroY);
+        c.restore();
+      }
+    };
+    new Chart(balCtx, {
+      type:'line',
+      data:{
+        labels: d.months.map(m=>m.label),
+        datasets:[{
+          label:'יתרה צפויה',
+          data: d.balanceByMonth,
+          borderColor:'#00AECC',
+          backgroundColor:'rgba(0,174,204,.1)',
+          fill:true,
+          tension:.3,
+          pointRadius:4,
+          pointBackgroundColor:'#00AECC',
+          pointHoverRadius:6
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:commonTooltip},
+        scales:commonScales
+      },
+      plugins:[negativePlugin]
+    });
+  }
+
+  // 2. Bar chart
+  const barCtx = document.getElementById('chart-bars');
+  if(barCtx){
+    const datasets = [];
+    if(analyticsFilter !== 'expense'){
+      datasets.push({label:'הכנסות',data:d.months.map(m=>m.income),backgroundColor:isLight?'rgba(34,139,34,.65)':'rgba(16,185,129,.65)',borderRadius:4,barPercentage:.6});
+    }
+    if(analyticsFilter !== 'income'){
+      datasets.push({label:'הוצאות',data:d.months.map(m=>m.expense),backgroundColor:isLight?'rgba(220,80,60,.55)':'rgba(251,146,60,.55)',borderRadius:4,barPercentage:.6});
+    }
+    new Chart(barCtx, {
+      type:'bar',
+      data:{labels:d.months.map(m=>m.label),datasets},
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:labelColor,font:{size:12},usePointStyle:true,pointStyle:'rectRounded'},rtl:true},tooltip:commonTooltip},
+        scales:{...commonScales,y:{...commonScales.y,beginAtZero:true}}
+      }
+    });
+  }
+
+  // 3. Pie chart (only if not filtering income)
+  const pieCtx = document.getElementById('chart-pie');
+  if(pieCtx && analyticsFilter !== 'income' && d.topVendors.length > 0){
+    const pieColors = ['#00AECC','#10B981','#F59E0B','#8B5CF6','#EC4899','#94A3B8'];
+    new Chart(pieCtx, {
+      type:'doughnut',
+      data:{
+        labels:d.topVendors.map(v=>v[0]),
+        datasets:[{data:d.topVendors.map(v=>v[1]),backgroundColor:pieColors.slice(0,d.topVendors.length),borderWidth:0,hoverOffset:8}]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        cutout:'55%',
+        plugins:{
+          legend:{position:'bottom',rtl:true,labels:{color:labelColor,font:{size:11},usePointStyle:true,pointStyle:'circle',padding:12}},
+          tooltip:{...commonTooltip,callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.parsed)+' ('+Math.round(ctx.parsed/d.topVendors.reduce((s,v)=>s+v[1],0)*100)+'%)'}}
+        }
+      }
+    });
+  }
+}
 
 // ─── MULTI-BANK CARDS (PRO) ─────────────────────
 function renderMultiBankCards() {
