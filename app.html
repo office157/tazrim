@@ -1426,22 +1426,34 @@ function renderAnalyticsView(futureTxs) {
 }
 
 
-function openAnalyticsDrill(type, futureTxs) {
+function openAnalyticsDrill(type, futureTxs, opts={}) {
   const today = new Date();
   const inMonths = new Date(today);
   inMonths.setMonth(inMonths.getMonth() + 12);
   const maxDate = inMonths.toISOString().slice(0,10);
   const todayStr = today.toISOString().slice(0,10);
-  const allTxs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  let allTxs = futureTxs.filter(t => !t.is_completed && t.date >= todayStr && t.date <= maxDate);
+  if(analyticsBankFilter) allTxs = allTxs.filter(t => t.bank_id === analyticsBankFilter);
 
   let filtered = allTxs;
   let title = '';
   if(type === 'income'){
     filtered = allTxs.filter(t => t.type === 'income');
-    title = '📈 הכנסות צפויות — 12 חודשים קדימה';
+    title = '📈 הכנסות צפויות';
   } else if(type === 'expense'){
     filtered = allTxs.filter(t => t.type === 'expense');
-    title = '📉 הוצאות צפויות — 12 חודשים קדימה';
+    title = '📉 הוצאות צפויות';
+  }
+  // Filter by vendor (pie chart click)
+  if(opts.vendor){
+    const v = opts.vendor;
+    filtered = filtered.filter(t => (t.vendor||'ללא ספק') === v);
+    title = '📉 הוצאות — ' + v;
+  }
+  // Filter by month (bar chart click)
+  if(opts.monthKey){
+    filtered = filtered.filter(t => t.date.slice(0,7) === opts.monthKey);
+    title += ' — ' + opts.monthLabel;
   }
 
   const total = filtered.reduce((s,t) => s + parseFloat(t.amount), 0);
@@ -1555,11 +1567,20 @@ function initAnalyticsCharts(futureTxs) {
       {label:'הכנסות',data:d.months.map(m=>m.income),backgroundColor:isLight?'rgba(34,139,34,.65)':'rgba(16,185,129,.65)',borderRadius:4,barPercentage:.6},
       {label:'הוצאות',data:d.months.map(m=>m.expense),backgroundColor:isLight?'rgba(220,80,60,.55)':'rgba(251,146,60,.55)',borderRadius:4,barPercentage:.6}
     ];
-    new Chart(barCtx, {
+    const barChart = new Chart(barCtx, {
       type:'bar',
       data:{labels:d.months.map(m=>m.label),datasets},
       options:{
         responsive:true,maintainAspectRatio:false,
+        onClick:(evt,elements)=>{
+          if(elements.length>0){
+            const idx = elements[0].index;
+            const dsIdx = elements[0].datasetIndex;
+            const mo = d.months[idx];
+            const type = dsIdx===0?'income':'expense';
+            openAnalyticsDrill(type, transactions, {monthKey:mo.key, monthLabel:mo.label});
+          }
+        },
         plugins:{legend:{labels:{color:labelColor,font:{size:12},usePointStyle:true,pointStyle:'rectRounded'},rtl:true},tooltip:commonTooltip},
         scales:{...commonScales,y:{...commonScales.y,beginAtZero:true}}
       }
@@ -1570,7 +1591,7 @@ function initAnalyticsCharts(futureTxs) {
   const pieCtx = document.getElementById('chart-pie');
   if(pieCtx && d.topVendors.length > 0){
     const pieColors = ['#00AECC','#10B981','#F59E0B','#8B5CF6','#EC4899','#94A3B8'];
-    new Chart(pieCtx, {
+    const pieChart = new Chart(pieCtx, {
       type:'doughnut',
       data:{
         labels:d.topVendors.map(v=>v[0]),
@@ -1579,6 +1600,13 @@ function initAnalyticsCharts(futureTxs) {
       options:{
         responsive:true,maintainAspectRatio:false,
         cutout:'55%',
+        onClick:(evt,elements)=>{
+          if(elements.length>0){
+            const idx = elements[0].index;
+            const vendorName = d.topVendors[idx][0];
+            openAnalyticsDrill('expense', transactions, {vendor:vendorName});
+          }
+        },
         plugins:{
           legend:{position:'bottom',rtl:true,labels:{color:labelColor,font:{size:11},usePointStyle:true,pointStyle:'circle',padding:12}},
           tooltip:{...commonTooltip,callbacks:{label:ctx=>ctx.label+': '+fmt(ctx.parsed)+' ('+Math.round(ctx.parsed/d.topVendors.reduce((s,v)=>s+v[1],0)*100)+'%)'}}
