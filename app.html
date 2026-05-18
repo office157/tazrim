@@ -427,8 +427,8 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .bank-filter-btn:hover{background:rgba(0,174,204,.06)}
 [data-theme="light"] .bank-filter-btn.active{background:var(--teal);color:#fff}
 
-.analytics-content{transition:opacity .25s ease}
-.analytics-content.fading{opacity:0}
+.analytics-content{transition:opacity .15s ease}
+.analytics-content.fading{opacity:0;transition:none}
 /* ─── ANALYTICS TAB ─────────────────────────────── */
 .app-tabs{display:flex;gap:0;margin:0 auto 6px;width:90%;max-width:none;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
 .app-tab{flex:1;text-align:center;padding:6px 0;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--text-dim);position:relative;border:none;background:transparent}
@@ -920,7 +920,9 @@ function bindDashboard(future, completed, zeroDate) {
       const content = document.getElementById('analytics-content');
       if(content){
         content.classList.add('fading');
-        setTimeout(()=>{
+        // Force reflow then update immediately
+        content.offsetHeight;
+        {
           // Update stat cards
           const d = getAnalyticsData(future);
           const projBal = (analyticsBankFilter
@@ -942,8 +944,10 @@ function bindDashboard(future, completed, zeroDate) {
           // Destroy and recreate charts
           Chart.helpers.each(Chart.instances,(c)=>{c.destroy()});
           initAnalyticsCharts(future);
+          // Force reflow then fade in
+          content.offsetHeight;
           content.classList.remove('fading');
-        }, 250);
+        }
       }
     });
   });
