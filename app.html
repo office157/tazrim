@@ -418,7 +418,7 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .drill-list td{border-bottom-color:rgba(0,0,0,.04)}
 [data-theme="light"] .drill-list th{background:rgba(255,255,255,.97)}
 /* ─── ANALYTICS TAB ─────────────────────────────── */
-.app-tabs{display:flex;gap:0;margin:0 auto 10px;max-width:none;width:calc(100vw - 10%);position:relative;left:50%;transform:translateX(-50%);border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
+.app-tabs{display:flex;gap:0;margin:0 auto 10px;width:90%;max-width:none;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
 .app-tab{flex:1;text-align:center;padding:7px 0;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--text-dim);position:relative;border:none;background:transparent}
 .app-tab:not(:last-child){border-left:1px solid var(--border)}
 .app-tab:hover{background:rgba(255,255,255,.05)}
@@ -428,7 +428,7 @@ select option{background:#fff;color:#111}
 [data-theme="light"] .app-tab:hover{background:rgba(0,0,0,.04)}
 [data-theme="light"] .app-tab.active{background:var(--teal);color:#fff}
 [data-theme="light"] .app-tab .pro-badge{background:rgba(0,0,0,.08)}
-.analytics-wrap{max-width:none;width:calc(100vw - 10%);margin:0 auto;position:relative;left:50%;transform:translateX(-50%)}
+.analytics-wrap{width:90%;max-width:none;margin:0 auto;padding:0}
 .stat-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
 @media(max-width:768px){.stat-cards{grid-template-columns:repeat(2,1fr)}}
 .stat-card{border-radius:14px;padding:16px 18px;cursor:pointer;transition:all .2s;border:2px solid transparent;background:rgba(255,255,255,.04);backdrop-filter:blur(8px);text-align:center}
@@ -575,8 +575,7 @@ function render() {
   </div>
   ${renderTrialBanner()}
   ${renderAppTabs(isPro)}
-  <div id="main">
-  ${activeView==='analytics'&&isPro ? renderAnalyticsView(future) : `
+  ${activeView==='analytics'&&isPro ? renderAnalyticsView(future) : `<div id="main">
     <div class="hero-grid">
       ${isPro ? renderMultiBankCards() : renderBalanceCard(zeroDate)+renderZeroCard(zeroDate)}
     </div>
@@ -596,8 +595,7 @@ function render() {
     ${renderFutureTable(fFuture)}
     ${fCompleted.length ? renderCompletedTable(fCompleted) : ''}
     </div>
-  `}
-  </div>
+  </div>`}
   ${modalOpen ? renderModal() : ''}
   ${settingsOpen ? renderSettings() : ''}
   ${upgradeModalOpen ? renderUpgradeModal() : ''}
