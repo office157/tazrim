@@ -426,6 +426,9 @@ select option{background:#fff;color:#111}
 .bank-filter-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
 [data-theme="light"] .bank-filter-btn:hover{background:rgba(0,174,204,.06)}
 [data-theme="light"] .bank-filter-btn.active{background:var(--teal);color:#fff}
+
+.analytics-content{transition:opacity .25s ease}
+.analytics-content.fading{opacity:0}
 /* ─── ANALYTICS TAB ─────────────────────────────── */
 .app-tabs{display:flex;gap:0;margin:0 auto 6px;width:90%;max-width:none;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.03)}
 .app-tab{flex:1;text-align:center;padding:6px 0;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--text-dim);position:relative;border:none;background:transparent}
@@ -440,12 +443,12 @@ select option{background:#fff;color:#111}
 .analytics-wrap{width:90%;max-width:none;margin:0 auto;padding:0;display:flex;flex-direction:column}
 .stat-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:8px}
 @media(max-width:768px){.stat-cards{grid-template-columns:repeat(2,1fr)}}
-.stat-card{border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .2s;border:2px solid transparent;background:rgba(255,255,255,.04);backdrop-filter:blur(8px);text-align:center}
+.stat-card{border-radius:14px;padding:16px 18px;cursor:pointer;transition:all .2s;border:2px solid transparent;background:rgba(255,255,255,.04);backdrop-filter:blur(8px);text-align:center}
 .stat-card:hover{background:rgba(255,255,255,.08)}
 .stat-card.active{border-color:var(--teal)}
-.stat-card .sc-label{font-size:12px;color:var(--text-dim);margin-bottom:2px}
-.stat-card .sc-value{font-size:20px;font-weight:700}
-.stat-card .sc-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
+.stat-card .sc-label{font-size:13px;color:var(--text-dim);margin-bottom:4px}
+.stat-card .sc-value{font-size:24px;font-weight:700}
+.stat-card .sc-sub{font-size:12px;color:var(--text-dim);margin-top:3px}
 [data-theme="light"] .stat-card{background:rgba(0,0,0,.03)}
 [data-theme="light"] .stat-card:hover{background:rgba(0,0,0,.06)}
 .charts-grid{display:grid;gap:8px;margin-bottom:8px}
@@ -909,8 +912,39 @@ function bindDashboard(future, completed, zeroDate) {
   document.querySelectorAll('.bank-filter-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const bid = btn.dataset.bankFilter;
+      if((bid||null) === analyticsBankFilter) return;
       analyticsBankFilter = bid || null;
-      render();
+      // Update active button immediately
+      document.querySelectorAll('.bank-filter-btn').forEach(b=>b.classList.toggle('active', (b.dataset.bankFilter||null) === analyticsBankFilter));
+      // Fade out, rebuild, fade in
+      const content = document.getElementById('analytics-content');
+      if(content){
+        content.classList.add('fading');
+        setTimeout(()=>{
+          // Update stat cards
+          const d = getAnalyticsData(future);
+          const projBal = (analyticsBankFilter
+            ? parseFloat((tenantBanks.find(b=>b.id===analyticsBankFilter)||{}).balance||0)
+            : (tenantBanks.length>0 ? tenantBanks.reduce((s,b)=>s+parseFloat(b.balance||0),0) : balance)
+          ) + d.totalIncome - d.totalExpense;
+          const cards = content.querySelectorAll('.stat-card');
+          if(cards[0]){cards[0].querySelector('.sc-value').innerHTML=fmt(d.totalIncome);cards[0].querySelector('.sc-sub').textContent=d.allTxs.filter(t=>t.type==='income').length+' תנועות';}
+          if(cards[1]){cards[1].querySelector('.sc-value').innerHTML=fmt(d.totalExpense);cards[1].querySelector('.sc-sub').textContent=d.allTxs.filter(t=>t.type==='expense').length+' תנועות';}
+          if(cards[2]){const gap=d.totalIncome-d.totalExpense;cards[2].querySelector('.sc-value').innerHTML=fmt(gap);cards[2].querySelector('.sc-value').style.color=gap>=0?'var(--green)':'var(--red)';cards[2].querySelector('.sc-sub').textContent=gap>=0?'עודף צפוי':'גירעון צפוי';}
+          if(cards[3]){cards[3].querySelector('.sc-value').innerHTML=fmt(projBal);cards[3].querySelector('.sc-value').style.color=projBal<0?'var(--red)':'var(--text)';}
+          if(cards[4]){cards[4].querySelector('.sc-value').textContent=d.txCount;}
+          // Update chart title
+          const balTitle = content.querySelector('.cc-title');
+          if(balTitle){
+            const bankName = analyticsBankFilter ? ' ('+bankDisplayName(tenantBanks.find(b=>b.id===analyticsBankFilter)||{bank_name:''})+')' : '';
+            balTitle.innerHTML = '📈 מגמת יתרה — 12 חודשים קדימה' + bankName;
+          }
+          // Destroy and recreate charts
+          Chart.helpers.each(Chart.instances,(c)=>{c.destroy()});
+          initAnalyticsCharts(future);
+          content.classList.remove('fading');
+        }, 250);
+      }
     });
   });
   // ── Analytics stat card drill-down ──
@@ -1304,7 +1338,8 @@ function renderAnalyticsView(futureTxs) {
     </div></div>`;
   }
 
-  return `<div class="analytics-wrap anim-fade">
+  return `<div class="analytics-wrap">
+    <div class="analytics-content" id="analytics-content">
     <div class="stat-cards">
       <div class="stat-card" data-drill="income">
         <div class="sc-label">📈 הכנסות צפויות</div>
