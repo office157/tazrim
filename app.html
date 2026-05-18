@@ -566,7 +566,7 @@ function render() {
     <div class="header-actions">
       ${userRole==='accountant'?`<button class="btn-add" id="btn-back-acct" style="background:transparent;border:1px solid var(--teal);color:var(--teal);box-shadow:none">← חזרה לדשבורד</button>`:''}
       ${activeView==='dashboard'?`<button class="btn-add" id="btn-open-add">＋ הוספת תנועה</button>`:''}
-      ${activeView==='dashboard'&&isPro?'<button class="btn-import" id="btn-open-import">📥 ייבוא מאקסל</button>':''}
+
       <button class="btn-settings" id="btn-settings" title="הגדרות">⚙</button>
       <button class="theme-toggle" id="theme-toggle" title="מצב בהיר/כהה">🌙</button>
       <button class="btn-logout" id="btn-logout">יציאה</button>
@@ -2340,6 +2340,7 @@ function renderSettings() {
           <div style="font-size:16px;font-weight:700">${isFreeAccount(currentTenant)?'חינמי':isTrialAccount(currentTenant)?'ניסיון חינם (7 ימים)':currentTenant.plan==='pro'?'PRO':'Starter'}${isTrialAccount(currentTenant)||isFreeAccount(currentTenant)?'':' — '+(currentTenant.billing_cycle==='yearly'?'שנתי':'חודשי')}</div>
           ${currentTenant.plan_expires_at?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px">תוקף עד: ${fmtDate(currentTenant.plan_expires_at.split('T')[0])}</div>`:''}
           <button class="btn-upgrade-plan" id="btn-upgrade-plan" style="margin-top:12px;padding:10px 20px;background:linear-gradient(135deg,var(--teal),#00d4ff);color:#07112B;font-weight:700;font-size:14px;border:none;border-radius:12px;cursor:pointer;transition:all .25s">🚀 שדרוג מסלול</button>
+          ${currentTenant?.plan==='pro'?'<button class="btn-import" id="btn-open-import" style="margin-top:10px;padding:10px 20px;background:transparent;border:1px solid var(--teal);color:var(--teal);font-weight:600;font-size:14px;border-radius:12px;cursor:pointer;transition:all .2s;width:100%;text-align:center">📥 ייבוא מאקסל</button>':''}
         </div>
         <div>
           <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">משתמשים מורשים (${tenantUsers.length}/${maxUsers})</div>
@@ -2365,6 +2366,7 @@ function renderSettings() {
 function bindSettings() {
   document.getElementById('btn-close-settings')?.addEventListener('click',()=>{settingsOpen=false;render();});
   document.getElementById('btn-upgrade-plan')?.addEventListener('click',()=>{settingsOpen=false;upgradeModalOpen=true;render();});
+  document.getElementById('btn-open-import')?.addEventListener('click',()=>{settingsOpen=false;importModalOpen=true;importRows=[];render();});
   document.getElementById('settings-overlay')?.addEventListener('click',(e)=>{
     if(e.target.id==='settings-overlay'){settingsOpen=false;render();}
   });
