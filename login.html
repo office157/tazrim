@@ -162,34 +162,19 @@ function goToApp(email){
 }
 
 async function init(){
-  // Handle OAuth/magic-link code exchange (PKCE flow)
   const params = new URLSearchParams(window.location.search);
-  if(params.get('code')){
-    try {
-      const {data,error} = await db.auth.exchangeCodeForSession(params.get('code'));
-      if(data?.session){
-        goToApp(data.session.user.email);
-        return;
-      }
-      if(error) console.error('[LOGIN] code exchange error:', error);
-    } catch(e){ console.error('[LOGIN] code exchange exception:', e); }
+  const hasAuthCallback = params.has('code') || window.location.hash.includes('access_token');
+
+  // Show loading state while processing OAuth callback
+  if(hasAuthCallback){
+    document.getElementById('form-content').innerHTML =
+      '<div style="text-align:center;padding:60px 20px;color:rgba(255,255,255,.5)">' +
+      '<div style="font-size:36px;margin-bottom:16px;animation:float 2s ease-in-out infinite">🔐</div>' +
+      '<div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:6px">מתחבר...</div>' +
+      '<div style="font-size:13px">אנא המתינו רגע</div></div>';
   }
 
-  const {data:{session}}=await db.auth.getSession();
-  if(session){
-    goToApp(session.user.email);
-    return;
-  }
-  renderForm();
-
-  // Listen for async session establishment (OAuth hash fragments)
+  // Register auth listener FIRST — catches async session from auto-init
+  let redirected = false;
   db.auth.onAuthStateChange((event, sess)=>{
-    if(event==='SIGNED_IN' && sess){
-      goToApp(sess.user.email);
-    }
-  });
-}
-init();
-</script>
-</body>
-</html>
+    if(event==='SIGNE

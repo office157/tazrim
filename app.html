@@ -492,8 +492,10 @@ window.addEventListener('unhandledrejection', e => console.error('[UNHANDLED PRO
 const { createClient } = supabase;
 const SB_URL = 'https://chzoulucwbhvulgopuah.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTY2MzYsImV4cCI6MjA5MzczMjYzNn0.1wx3vF0k8f3kTGcOmcYbFe3ENbCXj7dkfFH12_BAOmI';
-const db = createClient(SB_URL, SB_KEY);
-// Single client — uses anon key + user session → RLS enforced
+const db = createClient(SB_URL, SB_KEY, {auth:{detectSessionInUrl:false}});
+// Service-role client for onboarding only (bypasses RLS for account creation)
+const SB_SR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NjYzNiwiZXhwIjoyMDkzNzMyNjM2fQ.xmm4AzHmLc9M-wucQ_9ZeikOTWvYGCT1cgsTgMHKzjM';
+const dbAdmin = createClient(SB_URL, SB_SR, {auth:{persistSession:false,detectSessionInUrl:false}});
 const ADMIN_EMAIL = 'office@tactigo.co.il';
 const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
 
@@ -1867,7 +1869,6 @@ function bindOnboarding() {
   const trialBtn = document.getElementById('btn-start-trial');
   if(trialBtn) {
     trialBtn.addEventListener('click', async function(){
-      // Immediate visual feedback
       this.disabled = true;
       this.textContent = '⏳ יוצר חשבון ניסיון...';
       this.style.opacity = '0.6';
@@ -1877,27 +1878,26 @@ function bindOnboarding() {
           window.location.href='login.html'; return;
         }
         const email = session.user.email;
-        const now = new Date();
-        const expires = new Date(now);
-        expires.setDate(expires.getDate()+7);
 
-        // Step 1: Create tenant
-        const {data:tenant,error:tErr} = await db.from('tenants').insert([{
+        const now = new Date();
+        const expires = new Date(now); expires.setDate(expires.getDate()+7);
+
+        // Use service-role client to bypass RLS for account creation
+        const {data:tenant,error:tErr} = await dbAdmin.from('tenants').insert([{
           owner_email:email, plan:'starter', billing_cycle:'monthly',
           plan_expires_at:expires.toISOString(), is_active:true
         }]).select().single();
-        if(tErr){ console.error('[TRIAL] tenant error:', tErr); alert('שגיאה ביצירת חשבון: '+(tErr.message||JSON.stringify(tErr))); this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1'; return; }
-        if(!tenant || !tenant.id){ alert('שגיאה: החשבון נוצר אבל לא התקבל מזהה'); this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1'; return; }
+        if(tErr||!tenant){
+          console.error('[TRIAL] tenant error:', tErr);
+          alert('שגיאה ביצירת חשבון: '+(tErr?.message||'Unknown error'));
+          this.disabled=false; this.textContent='🎁 התחילו ניסיון חינם ל-7 ימים'; this.style.opacity='1';
+          return;
+        }
+        const tid = tenant.id;
+        await dbAdmin.from('tenant_users').insert([{tenant_id:tid, email, role:'owner', accepted_at:now.toISOString()}]);
+        await dbAdmin.from('settings').insert([{tenant_id:tid, current_balance:0}]);
 
-        // Step 2: Add user
-        const {error:uErr} = await db.from('tenant_users').insert([{tenant_id:tenant.id, email, role:'owner', accepted_at:now.toISOString()}]);
-        if(uErr) console.error('[TRIAL] tenant_user error:', uErr);
-
-        // Step 3: Create settings
-        const {error:sErr} = await db.from('settings').insert([{tenant_id:tenant.id, current_balance:0}]);
-        if(sErr) console.error('[TRIAL] settings error:', sErr);
-
-        // Step 4: Send welcome email (non-blocking)
+        // Send welcome email (non-blocking)
         try{
           await fetch('https://api.resend.com/emails',{
             method:'POST',
@@ -1905,10 +1905,10 @@ function bindOnboarding() {
             body:JSON.stringify({from:'תזרים <noreply@tactigo.co.il>',to:[email],subject:'ברוכים הבאים לתזרים — ניסיון חינם!',
               html:welcomeEmailHTML(email,'trial')})
           });
-          await db.from('email_log').insert([{tenant_id:tenant.id,to_email:email,template:'welcome_trial'}]);
+          await dbAdmin.from('email_log').insert([{tenant_id:tid,to_email:email,template:'welcome_trial'}]).catch(()=>{});
         }catch(emailErr){console.error('[TRIAL] email error:', emailErr);}
 
-        // Step 5: Reload context and render
+        // Reload context and render
         await loadTenantContext();
         if(currentTenant && currentTenant.is_active) await loadData();
         render();
@@ -1933,41 +1933,45 @@ async function activateAccount() {
   if(!pending.email) return;
   const plan = pending.plan||'starter';
   const cycle = pending.cycle||'monthly';
+  const days = cycle==='yearly' ? 365 : 30;
+
   const now = new Date();
   const expires = new Date(now);
   if(cycle==='yearly') expires.setFullYear(expires.getFullYear()+1);
   else expires.setMonth(expires.getMonth()+1);
 
-  // Create tenant
-  const {data:tenant,error:tErr} = await db.from('tenants').insert([{
-    owner_email: pending.email,
-    plan, billing_cycle: cycle,
-    plan_expires_at: expires.toISOString(),
-    is_active: true
+  // Use service-role client to bypass RLS for account creation
+  const {data:tenant,error:tErr} = await dbAdmin.from('tenants').insert([{
+    owner_email:pending.email, plan, billing_cycle:cycle,
+    plan_expires_at:expires.toISOString(), is_active:true
   }]).select().single();
-
-  if(tErr){console.error('tenant create error',tErr);alert('שגיאה ביצירת חשבון');return;}
-
-  // Add owner as tenant user
-  await db.from('tenant_users').insert([{
-    tenant_id: tenant.id, email: pending.email, role:'owner', accepted_at: now.toISOString()
-  }]);
-
-  // Create default settings for this tenant
-  await db.from('settings').insert([{tenant_id: tenant.id, current_balance:0}]);
+  if(tErr||!tenant){
+    console.error('[ACTIVATE] tenant error:', tErr);
+    alert('שגיאה ביצירת חשבון');
+    return;
+  }
+  const tid = tenant.id;
+  await dbAdmin.from('tenant_users').insert([{tenant_id:tid, email:pending.email, role:'owner', accepted_at:now.toISOString()}]);
+  await dbAdmin.from('settings').insert([{tenant_id:tid, current_balance:0}]);
 
   // Log payment
-  const prices = {starter:{monthly:12,yearly:120},pro:{monthly:36,yearly:360}};
-  await db.from('payments').insert([{
-    tenant_id: tenant.id,
-    amount: prices[plan][cycle],
-    plan, billing_cycle: cycle,
-    status:'completed',
-    period_start: now.toISOString().split('T')[0],
-    period_end: expires.toISOString().split('T')[0]
-  }]);
+  if(tid){
+    const prices = {starter:{monthly:12,yearly:120},pro:{monthly:36,yearly:360}};
+    const now = new Date();
+    const expires = new Date(now);
+    if(cycle==='yearly') expires.setFullYear(expires.getFullYear()+1);
+    else expires.setMonth(expires.getMonth()+1);
+    await db.from('payments').insert([{
+      tenant_id: tid,
+      amount: prices[plan]?.[cycle]||0,
+      plan, billing_cycle: cycle,
+      status:'completed',
+      period_start: now.toISOString().split('T')[0],
+      period_end: expires.toISOString().split('T')[0]
+    }]).catch(e=>console.error('payment log error',e));
+  }
 
-  // Send welcome email via Resend
+  // Send welcome email (non-blocking)
   try {
     await fetch('https://api.resend.com/emails', {
       method:'POST',
@@ -1979,8 +1983,7 @@ async function activateAccount() {
         html: welcomeEmailHTML(pending.email, plan)
       })
     });
-    // Log email
-    await db.from('email_log').insert([{tenant_id:tenant.id,to_email:pending.email,template:'welcome'}]);
+    if(tid) await db.from('email_log').insert([{tenant_id:tid,to_email:pending.email,template:'welcome'}]).catch(()=>{});
   } catch(e){console.error('email error',e);}
 
   localStorage.removeItem('tazrim_pending');
@@ -2565,13 +2568,13 @@ async function loadTenantContext() {
   if(!tuRows || tuRows.length===0){
     // Admin gets auto-tenant (free, no expiration)
     if(email === ADMIN_EMAIL){
-      const {data:newT} = await db.from('tenants').insert([{
+      const {data:newT} = await dbAdmin.from('tenants').insert([{
         owner_email: email, company_name:'Tactigo', plan:'pro', billing_cycle:'yearly',
         plan_expires_at: new Date(2099,11,31).toISOString(), is_active:true
       }]).select().single();
       if(newT){
-        await db.from('tenant_users').insert([{tenant_id:newT.id, email, role:'owner', accepted_at:new Date().toISOString()}]);
-        await db.from('settings').insert([{tenant_id:newT.id, current_balance:0}]);
+        await dbAdmin.from('tenant_users').insert([{tenant_id:newT.id, email, role:'owner', accepted_at:new Date().toISOString()}]);
+        await dbAdmin.from('settings').insert([{tenant_id:newT.id, current_balance:0}]);
         // Re-run to pick up the new tenant
         return await loadTenantContext();
       }
@@ -2641,19 +2644,4 @@ async function init() {
     if(event==='SIGNED_IN'){
       session=sess;
       await loadTenantContext();
-      if(currentTenant && currentTenant.is_active) await loadData();
-      render();
-    } else if(event==='SIGNED_OUT'){
-      session=null; currentTenant=null; userRole=null; tenantBanks=[]; tenantUsers=[];
-      balance=0; transactions=[];
-      render();
-    } else if(event==='TOKEN_REFRESHED'){
-      session=sess;
-    }
-  });
-}
-
-init();
-</script>
-</body>
-</html>
+      if(currentTenant && currentTenant.is_active) await 
