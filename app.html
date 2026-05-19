@@ -476,6 +476,8 @@ select option{background:#fff;color:#111}
   .edit-actions{flex-wrap:wrap;gap:8px}
   .tbl{font-size:12px}
 }
+.version-box{position:fixed;bottom:8px;left:8px;background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:10px;color:var(--text-dim);z-index:10;opacity:.6;transition:opacity .2s;cursor:default;line-height:1.4}
+.version-box:hover{opacity:1}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -483,6 +485,7 @@ select option{background:#fff;color:#111}
 <div id="app">
   <div id="loader"><div class="spinner"></div></div>
 </div>
+<div class="version-box">v2.4.0 | 19.05.2026</div>
 
 <script type="module">
 // Global error catcher
@@ -1449,7 +1452,15 @@ function openAnalyticsDrill(type, futureTxs, opts={}) {
   // Filter by vendor (pie chart click)
   if(opts.vendor){
     const v = opts.vendor;
-    filtered = filtered.filter(t => (t.vendor||'ללא ספק') === v);
+    if(v === 'אחר'){
+      // "אחר" = all vendors beyond top 5
+      const vendorMap = {};
+      filtered.filter(t=>t.type==='expense').forEach(t=>{ const vn=t.vendor||'ללא ספק'; vendorMap[vn]=(vendorMap[vn]||0)+parseFloat(t.amount); });
+      const top5names = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>e[0]);
+      filtered = filtered.filter(t => t.type==='expense' && !top5names.includes(t.vendor||'ללא ספק'));
+    } else {
+      filtered = filtered.filter(t => (t.vendor||'ללא ספק') === v);
+    }
     title = '📉 הוצאות — ' + v;
   }
   // Filter by month (bar chart click)
