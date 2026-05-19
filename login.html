@@ -161,6 +161,7 @@ function goToApp(email){
   else window.location.href='app.html';
 }
 
+
 async function init(){
   const params = new URLSearchParams(window.location.search);
   const hasAuthCallback = params.has('code') || window.location.hash.includes('access_token');
@@ -177,4 +178,47 @@ async function init(){
   // Register auth listener FIRST — catches async session from auto-init
   let redirected = false;
   db.auth.onAuthStateChange((event, sess)=>{
-    if(event==='SIGNE
+    if(event==='SIGNED_IN' && sess && !redirected){
+      redirected = true;
+      window.history.replaceState({}, '', window.location.pathname);
+      goToApp(sess.user.email);
+    }
+  });
+
+  // getSession() waits for Supabase auto-init (PKCE exchange / hash detection)
+  try {
+    const {data:{session}} = await db.auth.getSession();
+    if(session && !redirected){
+      redirected = true;
+      window.history.replaceState({}, '', window.location.pathname);
+      goToApp(session.user.email);
+      return;
+    }
+  } catch(e){ console.error('[LOGIN] getSession error:', e); }
+
+  // If we came back from OAuth but still no session — auth failed
+  if(hasAuthCallback && !redirected){
+    // Give onAuthStateChange one more chance (1.5s grace period)
+    await new Promise(r => setTimeout(r, 1500));
+    if(redirected) return;
+    try {
+      const {data:{session:s2}} = await db.auth.getSession();
+      if(s2){
+        redirected = true;
+        window.history.replaceState({}, '', window.location.pathname);
+        goToApp(s2.user.email);
+        return;
+      }
+    } catch(e){}
+    // Truly failed — clean URL and show error
+    window.history.replaceState({}, '', window.location.pathname);
+    renderForm('ההתחברות נכשלה. אנא נסו שוב.');
+    return;
+  }
+
+  if(!redirected) renderForm();
+}
+init();
+</script>
+</body>
+</html>
