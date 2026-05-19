@@ -492,10 +492,10 @@ window.addEventListener('unhandledrejection', e => console.error('[UNHANDLED PRO
 const { createClient } = supabase;
 const SB_URL = 'https://chzoulucwbhvulgopuah.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTY2MzYsImV4cCI6MjA5MzczMjYzNn0.1wx3vF0k8f3kTGcOmcYbFe3ENbCXj7dkfFH12_BAOmI';
-const db = createClient(SB_URL, SB_KEY, {auth:{detectSessionInUrl:false}});
+const db = createClient(SB_URL, SB_KEY);
 // Service-role client for onboarding only (bypasses RLS for account creation)
 const SB_SR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NjYzNiwiZXhwIjoyMDkzNzMyNjM2fQ.xmm4AzHmLc9M-wucQ_9ZeikOTWvYGCT1cgsTgMHKzjM';
-const dbAdmin = createClient(SB_URL, SB_SR, {auth:{persistSession:false,detectSessionInUrl:false}});
+const dbAdmin = createClient(SB_URL, SB_SR, {auth:{persistSession:false,autoRefreshToken:false,storageKey:'sb-admin-token'}});
 const ADMIN_EMAIL = 'office@tactigo.co.il';
 const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
 
@@ -2644,4 +2644,4 @@ async function init() {
     if(event==='SIGNED_IN'){
       session=sess;
       await loadTenantContext();
-      if(currentTenant && currentTenant.is_active) await 
+      if(currentTenant && currentTenant.is_active) await loadData(
