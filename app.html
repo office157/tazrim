@@ -2644,4 +2644,19 @@ async function init() {
     if(event==='SIGNED_IN'){
       session=sess;
       await loadTenantContext();
-      if(currentTenant && currentTenant.is_active) await loadData(
+      if(currentTenant && currentTenant.is_active) await loadData();
+      render();
+    } else if(event==='SIGNED_OUT'){
+      session=null; currentTenant=null; userRole=null; tenantBanks=[]; tenantUsers=[];
+      balance=0; transactions=[];
+      render();
+    } else if(event==='TOKEN_REFRESHED'){
+      session=sess;
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
