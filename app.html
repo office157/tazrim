@@ -1084,7 +1084,7 @@ function bindDashboard(future, completed, zeroDate) {
 async function saveBalance() {
   const val = parseFloat(document.getElementById('bal-input')?.value);
   if(isNaN(val)){ alert('אנא הכניסו מספר תקין'); return; }
-  await db.from('settings').update({current_balance:val}).eq('tenant_id',currentTenant.id);
+  await dbAdmin.from('settings').update({current_balance:val}).eq('tenant_id',currentTenant.id);
   balance=val; editingBalance=false; render();
 }
 
@@ -1102,7 +1102,7 @@ function bindEditCard() {
     };
     const edBank = document.getElementById('ed-bank')?.value;
     if(edBank !== undefined) updateData.bank_id = edBank || null;
-    await db.from('transactions').update(updateData).eq('id', id).eq('tenant_id', currentTenant.id);
+    await dbAdmin.from('transactions').update(updateData).eq('id', id).eq('tenant_id', currentTenant.id);
     selectedTxId=null; await loadData(); render();
   });
   document.getElementById('ed-cancel')?.addEventListener('click',()=>{ selectedTxId=null; render(); });
@@ -1173,29 +1173,29 @@ function bindConfirmModal() {
     document.getElementById('confirm-cancel')?.addEventListener('click',()=>{ confirmModal=null; render(); });
     document.getElementById('confirm-ok')?.addEventListener('click', async()=>{
       const id=confirmModal.id; confirmModal=null;
-      await db.from('transactions').delete().eq('id',id).eq('tenant_id', currentTenant.id);
+      await dbAdmin.from('transactions').delete().eq('id',id).eq('tenant_id', currentTenant.id);
       await loadData(); render();
     });
   } else {
     document.getElementById('confirm-no')?.addEventListener('click', async()=>{
       const id=confirmModal.id; confirmModal=null;
-      await db.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id).eq('tenant_id', currentTenant.id);
+      await dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id).eq('tenant_id', currentTenant.id);
       await loadData(); render();
     });
     document.getElementById('confirm-yes')?.addEventListener('click', async()=>{
       const {id,amount,txType,bank_id}=confirmModal; confirmModal=null;
       const delta = txType==='income' ? parseFloat(amount) : -parseFloat(amount);
-      const updates = [db.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id).eq('tenant_id', currentTenant.id)];
+      const updates = [dbAdmin.from('transactions').update({is_completed:true,completed_at:new Date().toISOString()}).eq('id',id).eq('tenant_id', currentTenant.id)];
       if(bank_id && tenantBanks.length>0){
         const bank = tenantBanks.find(b=>b.id===bank_id);
-        if(bank){ updates.push(db.from('tenant_banks').update({balance:parseFloat(bank.balance||0)+delta}).eq('id',bank_id).eq('tenant_id', currentTenant.id)); }
+        if(bank){ updates.push(dbAdmin.from('tenant_banks').update({balance:parseFloat(bank.balance||0)+delta}).eq('id',bank_id).eq('tenant_id', currentTenant.id)); }
       } else {
-        updates.push(db.from('settings').update({current_balance:balance+delta}).eq('tenant_id',currentTenant.id));
+        updates.push(dbAdmin.from('settings').update({current_balance:balance+delta}).eq('tenant_id',currentTenant.id));
         balance += delta;
       }
       await Promise.all(updates);
       if(tenantBanks.length>0){
-        const {data:bnks} = await db.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order');
+        const {data:bnks} = await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order');
         tenantBanks = bnks||[];
       }
       await loadData(); render();
@@ -1259,16 +1259,16 @@ function bindModal(zeroDate) {
     const base = {description:desc, vendor, amount, date, type:modalType, is_recurring:modalRecurring, tenant_id:currentTenant.id, bank_id:bankId||null};
 
     if(months>1){
-      const {data:first} = await db.from('transactions').insert([base]).select().single();
+      const {data:first} = await dbAdmin.from('transactions').insert([base]).select().single();
       const extras = [];
       for(let i=1;i<months;i++){
         const d = new Date(date+'T00:00:00');
         d.setMonth(d.getMonth()+i);
         extras.push({...base, date:d.toISOString().split('T')[0], parent_transaction_id:first.id});
       }
-      if(extras.length) await db.from('transactions').insert(extras);
+      if(extras.length) await dbAdmin.from('transactions').insert(extras);
     } else {
-      await db.from('transactions').insert([base]);
+      await dbAdmin.from('transactions').insert([base]);
     }
 
     await loadData();
@@ -1713,16 +1713,16 @@ function openBankEditModal(bank){
     const btn=document.getElementById('bank-modal-save');
     btn.disabled=true; btn.textContent='שומר...';
     try{
-      await db.from('tenant_banks').update({bank_name:bankData,balance:bal}).eq('id',bank.id).eq('tenant_id', currentTenant.id);
-      const {data:banks}=await db.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
+      await dbAdmin.from('tenant_banks').update({bank_name:bankData,balance:bal}).eq('id',bank.id).eq('tenant_id', currentTenant.id);
+      const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
       tenantBanks=banks||[];
       close(); render();
     }catch(err){errEl.textContent='שגיאה: '+(err.message||err);errEl.style.display='block';btn.disabled=false;btn.textContent='שמירה';}
   });
   document.getElementById('bank-modal-delete')?.addEventListener('click',async()=>{
     if(!confirm('למחוק את חשבון הבנק? תנועות משויכות לא יימחקו.')) return;
-    await db.from('tenant_banks').delete().eq('id',bank.id).eq('tenant_id', currentTenant.id);
-    const {data:banks}=await db.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
+    await dbAdmin.from('tenant_banks').delete().eq('id',bank.id).eq('tenant_id', currentTenant.id);
+    const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
     tenantBanks=banks||[];
     close(); render();
   });
@@ -1798,8 +1798,8 @@ function bindBankModal(){
     const btn=document.getElementById('bank-modal-save');
     btn.disabled=true; btn.textContent='שומר...';
     try{
-      await db.from('tenant_banks').insert([{tenant_id:currentTenant.id,bank_name:bankData,balance:bal,display_order:tenantBanks.length}]);
-      const {data:banks}=await db.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
+      await dbAdmin.from('tenant_banks').insert([{tenant_id:currentTenant.id,bank_name:bankData,balance:bal,display_order:tenantBanks.length}]);
+      const {data:banks}=await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',currentTenant.id).order('display_order',{ascending:true});
       tenantBanks=banks||[];
       close();
       render();
@@ -1961,7 +1961,7 @@ async function activateAccount() {
     const expires = new Date(now);
     if(cycle==='yearly') expires.setFullYear(expires.getFullYear()+1);
     else expires.setMonth(expires.getMonth()+1);
-    await db.from('payments').insert([{
+    await dbAdmin.from('payments').insert([{
       tenant_id: tid,
       amount: prices[plan]?.[cycle]||0,
       plan, billing_cycle: cycle,
@@ -1983,7 +1983,7 @@ async function activateAccount() {
         html: welcomeEmailHTML(pending.email, plan)
       })
     });
-    if(tid) await db.from('email_log').insert([{tenant_id:tid,to_email:pending.email,template:'welcome'}]).catch(()=>{});
+    if(tid) await dbAdmin.from('email_log').insert([{tenant_id:tid,to_email:pending.email,template:'welcome'}]).catch(()=>{});
   } catch(e){console.error('email error',e);}
 
   localStorage.removeItem('tazrim_pending');
@@ -2049,7 +2049,7 @@ function bindExpired() {
         const now=new Date(),expires=new Date(now);
         if(currentTenant.billing_cycle==='yearly') expires.setFullYear(expires.getFullYear()+1);
         else expires.setMonth(expires.getMonth()+1);
-        await db.from('tenants').update({is_active:true,plan_expires_at:expires.toISOString()}).eq('id',currentTenant.id);
+        await dbAdmin.from('tenants').update({is_active:true,plan_expires_at:expires.toISOString()}).eq('id',currentTenant.id);
         await loadTenantContext(); render();
       }
     },3000);
@@ -2080,22 +2080,22 @@ async function bindAccountantDash() {
   bindThemeToggle();
   // Load accountant's tenants
   const email = session.user.email;
-  const {data:tuRows} = await db.from('tenant_users').select('tenant_id').eq('email',email).eq('role','accountant').eq('is_active',true);
+  const {data:tuRows} = await dbAdmin.from('tenant_users').select('tenant_id').eq('email',email).eq('role','accountant').eq('is_active',true);
   if(!tuRows||!tuRows.length){
     document.getElementById('acct-grid').innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">אין לקוחות משויכים</div>';
     return;
   }
   const tIds = tuRows.map(r=>r.tenant_id);
-  const {data:tenants} = await db.from('tenants').select('*').in('id',tIds);
+  const {data:tenants} = await dbAdmin.from('tenants').select('*').in('id',tIds);
   const grid = document.getElementById('acct-grid');
   if(!tenants||!tenants.length){grid.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">אין לקוחות</div>';return;}
 
   let html='';
   for(const t of tenants){
     const [{data:sets},{data:txs},{data:banks}] = await Promise.all([
-      db.from('settings').select('*').eq('tenant_id',t.id).single(),
-      db.from('transactions').select('*').eq('tenant_id',t.id),
-      db.from('tenant_banks').select('*').eq('tenant_id',t.id)
+      dbAdmin.from('settings').select('*').eq('tenant_id',t.id).single(),
+      dbAdmin.from('transactions').select('*').eq('tenant_id',t.id),
+      dbAdmin.from('tenant_banks').select('*').eq('tenant_id',t.id)
     ]);
     // For multi-bank (PRO) tenants, balance = sum of bank balances; otherwise settings.current_balance
     const bal = (banks && banks.length > 0)
@@ -2139,7 +2139,7 @@ async function bindAccountantDash() {
     if(!t||!t.is_active) return;
     currentTenant=t; userRole='accountant';
     // Load banks for accountant view
-    const {data:bnks} = await db.from('tenant_banks').select('*').eq('tenant_id',t.id).order('display_order');
+    const {data:bnks} = await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',t.id).order('display_order');
     tenantBanks = bnks||[];
     await loadTenantUsers();
     await loadData(); render();
@@ -2319,7 +2319,7 @@ async function importTransactions(rows) {
       tenant_id: tid,
       bank_id: r.bank_id
     }));
-    await db.from('transactions').insert(batch);
+    await dbAdmin.from('transactions').insert(batch);
   }
   await loadData();
 }
@@ -2509,14 +2509,14 @@ function bindSettings() {
   });
   document.querySelectorAll('.btn-remove-user').forEach(el=>el.addEventListener('click',async()=>{
     if(!confirm('להסיר משתמש זה?')) return;
-    await db.from('tenant_users').update({is_active:false}).eq('id',el.dataset.uid).eq('tenant_id', currentTenant.id);
+    await dbAdmin.from('tenant_users').update({is_active:false}).eq('id',el.dataset.uid).eq('tenant_id', currentTenant.id);
     await loadTenantUsers(); render();
   }));
   document.getElementById('btn-add-user')?.addEventListener('click',async()=>{
     const email=sanitizeEmail(document.getElementById('new-user-email').value);
     const role=document.getElementById('new-user-role').value;
     if(!email) return;
-    const {error}=await db.from('tenant_users').insert([{
+    const {error}=await dbAdmin.from('tenant_users').insert([{
       tenant_id:currentTenant.id, email, role, accepted_at:new Date().toISOString()
     }]);
     if(error){alert(error.message);return;}
@@ -2526,7 +2526,7 @@ function bindSettings() {
 
 async function loadTenantUsers() {
   if(!currentTenant) return;
-  const {data}=await db.from('tenant_users').select('*').eq('tenant_id',currentTenant.id).eq('is_active',true);
+  const {data}=await dbAdmin.from('tenant_users').select('*').eq('tenant_id',currentTenant.id).eq('is_active',true);
   tenantUsers=data||[];
 }
 
@@ -2563,7 +2563,7 @@ async function loadTenantContext() {
   const email = session.user.email;
   
   // Check if user has any tenant access
-  const {data:tuRows} = await db.from('tenant_users').select('*').eq('email',email).eq('is_active',true);
+  const {data:tuRows} = await dbAdmin.from('tenant_users').select('*').eq('email',email).eq('is_active',true);
   
   if(!tuRows || tuRows.length===0){
     // Admin gets auto-tenant (free, no expiration)
@@ -2593,7 +2593,7 @@ async function loadTenantContext() {
   const acctRow = tuRows.find(r=>r.role==='accountant');
   
   if(ownerRow){
-    const {data:t} = await db.from('tenants').select('*').eq('id',ownerRow.tenant_id).single();
+    const {data:t} = await dbAdmin.from('tenants').select('*').eq('id',ownerRow.tenant_id).single();
     currentTenant = t;
     userRole = ownerRow.role;
     // Check expiration (skip for free accounts)
@@ -2602,7 +2602,7 @@ async function loadTenantContext() {
     }
     // Load banks for all plans
     if(t){
-      const {data:banks} = await db.from('tenant_banks').select('*').eq('tenant_id',t.id).order('display_order',{ascending:true});
+      const {data:banks} = await dbAdmin.from('tenant_banks').select('*').eq('tenant_id',t.id).order('display_order',{ascending:true});
       tenantBanks = banks||[];
     }
     await loadTenantUsers();
@@ -2619,8 +2619,8 @@ async function loadData() {
   if(!currentTenant) return;
   const tid = currentTenant.id;
   const [{data:sets},{data:txs}] = await Promise.all([
-    db.from('settings').select('*').eq('tenant_id',tid).single(),
-    db.from('transactions').select('*').eq('tenant_id',tid).order('date',{ascending:true})
+    dbAdmin.from('settings').select('*').eq('tenant_id',tid).single(),
+    dbAdmin.from('transactions').select('*').eq('tenant_id',tid).order('date',{ascending:true})
   ]);
   if(sets) balance = parseFloat(sets.current_balance)||0;
   else balance = 0;
