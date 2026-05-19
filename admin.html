@@ -104,7 +104,9 @@ const { createClient } = supabase;
 const SB_URL = 'https://chzoulucwbhvulgopuah.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxNTY2MzYsImV4cCI6MjA5MzczMjYzNn0.1wx3vF0k8f3kTGcOmcYbFe3ENbCXj7dkfFH12_BAOmI';
 const db = createClient(SB_URL, SB_KEY);
-// Single client — uses anon key + user session → RLS enforced
+// Service-role client for admin write operations (bypasses RLS)
+const SB_SR = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoem91bHVjd2JodnVsZ29wdWFoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE1NjYzNiwiZXhwIjoyMDkzNzMyNjM2fQ.xmm4AzHmLc9M-wucQ_9ZeikOTWvYGCT1cgsTgMHKzjM';
+const dbAdmin = createClient(SB_URL, SB_SR, {auth:{persistSession:false,autoRefreshToken:false,storageKey:'sb-admin-token'}});
 const ADMIN_EMAIL = 'office@tactigo.co.il';
 const RESEND_KEY = 're_Z7jn1BJs_7otoke9t67NKerV1eDPrBbj1';
 const esc=(s)=>{if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
@@ -264,8 +266,8 @@ function bindContentListeners() {
       document.querySelectorAll('.btn-toggle-client').forEach(b=>b.addEventListener('click', async()=>{
         const t=tenants.find(x=>x.id===b.dataset.id);
         if(!t) return;
-        await db.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
-        await loadTenants(); render();
+        await dbAdmin.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
+        await loadData(); render();
       }));
       const ni = document.getElementById('admin-search');
       if(ni){ ni.focus(); try{ni.setSelectionRange(e.target.selectionStart,e.target.selectionStart);}catch(x){} }
@@ -292,8 +294,8 @@ function bindContentListeners() {
   document.querySelectorAll('.btn-toggle-client').forEach(b=>b.addEventListener('click', async()=>{
     const t=tenants.find(x=>x.id===b.dataset.id);
     if(!t) return;
-    await db.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
-    await loadTenants(); render();
+    await dbAdmin.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
+    await loadData(); render();
   }));
   // Send expiry
   document.getElementById('btn-send-expiry')?.addEventListener('click', sendExpiryEmails);
@@ -493,7 +495,7 @@ function bindDashboard() {
     const t=tenants.find(x=>x.id===b.dataset.id);
     if(!t) return;
     if(!confirm(t.is_active?'להשבית לקוח זה?':'להפעיל לקוח זה?')) return;
-    await db.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
+    await dbAdmin.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);
     await loadData(); render();
   }));
 
@@ -516,7 +518,7 @@ function bindDashboard() {
       const checkedTenants=[...document.querySelectorAll('.ma-tenant-chk:checked')].map(c=>c.value);
       if(!checkedTenants.length){alert('בחר לפחות לקוח אחד');return;}
       for(const tid of checkedTenants){
-        const {error}=await db.from('tenant_users').insert([{
+        const {error}=await dbAdmin.from('tenant_users').insert([{
           tenant_id:tid, email, role:'accountant', accepted_at:new Date().toISOString(), is_active:true
         }]);
         if(error && !error.message.includes('duplicate')) console.error(error);
@@ -546,14 +548,14 @@ function bindDashboard() {
         expires.setMonth(expires.getMonth()+1);
       }
 
-      const {data:tenant,error}=await db.from('tenants').insert([{
+      const {data:tenant,error}=await dbAdmin.from('tenants').insert([{
         owner_email:email, company_name:name, plan:dbPlan, billing_cycle:planVal==='free'||planVal==='trial'?'monthly':cycle,
         plan_expires_at:expires.toISOString(), is_active:true
       }]).select().single();
       if(error){alert(error.message);return;}
 
-      await db.from('tenant_users').insert([{tenant_id:tenant.id,email,role:'owner',accepted_at:now.toISOString()}]);
-      await db.from('settings').insert([{tenant_id:tenant.id,current_balance:0}]);
+      await dbAdmin.from('tenant_users').insert([{tenant_id:tenant.id,email,role:'owner',accepted_at:now.toISOString()}]);
+      await dbAdmin.from('settings').insert([{tenant_id:tenant.id,current_balance:0}]);
 
       // Send welcome email
       try{
@@ -566,7 +568,7 @@ function bindDashboard() {
             html:welcomeHTML(email,planVal)
           })
         });
-        await db.from('email_log').insert([{tenant_id:tenant.id,to_email:email,template:'welcome'}]);
+        await dbAdmin.from('email_log').insert([{tenant_id:tenant.id,to_email:email,template:'welcome'}]);
       }catch(e){console.error(e);}
 
       modalData=null; await loadData(); render();
@@ -590,10 +592,11 @@ function bindDashboard() {
         expiresDate=exp.toISOString();
       }
 
-      await db.from('tenants').update({
+      const {error:updateErr} = await dbAdmin.from('tenants').update({
         company_name:name||null, plan:dbPlan, billing_cycle:planVal==='free'||planVal==='trial'?'monthly':cycle,
         plan_expires_at:expiresDate
       }).eq('id',t.id);
+      if(updateErr){ alert('שגיאה בעדכון: '+(updateErr.message||'')); return; }
       modalData=null; await loadData(); render();
     });
   }
@@ -623,7 +626,7 @@ async function sendExpiryEmails() {
           html:expiryHTML(t,url)
         })
       });
-      await db.from('email_log').insert([{tenant_id:t.id,to_email:t.owner_email,template:'expiry_warning'}]);
+      await dbAdmin.from('email_log').insert([{tenant_id:t.id,to_email:t.owner_email,template:'expiry_warning'}]);
     }catch(e){console.error(e);}
   }
   alert(`נשלחו ${soon.length} התראות`);
@@ -664,7 +667,7 @@ function expiryHTML(t,url){
 async function loadAccountants(){
   const el=document.getElementById('accountants-list');
   if(!el) return;
-  const {data:acctUsers}=await db.from('tenant_users').select('*').eq('role','accountant').eq('is_active',true);
+  const {data:acctUsers}=await dbAdmin.from('tenant_users').select('*').eq('role','accountant').eq('is_active',true);
   if(!acctUsers||!acctUsers.length){el.innerHTML='<div style="padding:20px;color:var(--text-dim)">אין חשבונאים</div>';return;}
   // Group by email
   const byEmail={};
@@ -693,14 +696,14 @@ async function loadAccountants(){
     if(!confirm('להסיר חשבונאי זה?')) return;
     const ids=b.dataset.ids.split(',');
     for(const id of ids){
-      await db.from('tenant_users').update({is_active:false}).eq('id',id);
+      await dbAdmin.from('tenant_users').update({is_active:false}).eq('id',id);
     }
     loadAccountants();
   }));
 }
 
 async function loadEmails(){
-  const {data}=await db.from('email_log').select('*').order('sent_at',{ascending:false}).limit(50);
+  const {data}=await dbAdmin.from('email_log').select('*').order('sent_at',{ascending:false}).limit(50);
   const el=document.getElementById('emails-list');
   if(!el) return;
   if(!data||!data.length){el.innerHTML='<div style="padding:20px;color:var(--text-dim)">אין מיילים</div>';return;}
@@ -716,8 +719,8 @@ async function loadEmails(){
 
 async function loadData(){
   const [{data:t},{data:p}]=await Promise.all([
-    db.from('tenants').select('*').order('created_at',{ascending:false}),
-    db.from('payments').select('*').order('paid_at',{ascending:false})
+    dbAdmin.from('tenants').select('*').order('created_at',{ascending:false}),
+    dbAdmin.from('payments').select('*').order('paid_at',{ascending:false})
   ]);
   tenants=t||[];
   payments=p||[];
